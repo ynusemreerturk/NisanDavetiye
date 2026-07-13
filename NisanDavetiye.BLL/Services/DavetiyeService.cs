@@ -7,8 +7,13 @@ namespace NisanDavetiye.BLL.Services;
 public class DavetiyeService : IDavetiyeService
 {
     private readonly IDavetiyeRepository _repo;
+    private readonly IMediaUrlSigner _mediaSigner;
 
-    public DavetiyeService(IDavetiyeRepository repo) => _repo = repo;
+    public DavetiyeService(IDavetiyeRepository repo, IMediaUrlSigner mediaSigner)
+    {
+        _repo = repo;
+        _mediaSigner = mediaSigner;
+    }
 
     public async Task<DavetiyeDto> GetDavetiyeByUidAsync(string uid)
     {
@@ -59,34 +64,13 @@ public class DavetiyeService : IDavetiyeService
 
         await _repo.UpdateAyarlariAsync(ayar);
 
-        var timeline = dto.Timeline
-            .Select((t, i) => new TimelineOgesi
-            {
-                Id = t.Id > 0 ? t.Id : i + 1,
-                Baslik = t.Baslik.Trim(),
-                Aciklama = t.Aciklama.Trim(),
-                Saat = t.Saat.Trim(),
-                Sira = i + 1
-            })
-            .ToList();
-
-        var galeri = dto.Galeri
-            .Select((g, i) => new GaleriResmi
-            {
-                Id = g.Id > 0 ? g.Id : i + 1,
-                Url = g.Url.Trim(),
-                AltMetin = g.AltMetin.Trim(),
-                Sira = i + 1
-            })
-            .ToList();
-
-        await _repo.ReplaceTimelineAsync(timeline);
-        await _repo.ReplaceGaleriAsync(galeri);
+        var timeline = await _repo.GetTimelineAsync();
+        var galeri = await _repo.GetGaleriAsync();
 
         return MapAdmin(ayar, timeline, galeri);
     }
 
-    private static DavetiyeDto MapPublic(
+    private DavetiyeDto MapPublic(
         DavetiyeAyarlari ayar,
         IReadOnlyList<TimelineOgesi> timeline,
         IReadOnlyList<GaleriResmi> galeri) =>
@@ -108,14 +92,18 @@ public class DavetiyeService : IDavetiyeService
             ayar.ZarfArkaPlanUrl,
             ayar.GaleriDriveKlasorUrl,
             timeline.Select(t => new TimelineDto(t.Id, t.Baslik, t.Aciklama, t.Saat, t.Sira)).ToList(),
-            galeri.Select(g => new GaleriDto(g.Id, g.Url, g.AltMetin, g.Sira)).ToList());
+            galeri
+                .Where(g => !_mediaSigner.IsGuestUploadUrl(g.Url) || g.Onaylandi)
+                .Select(g => MapGaleri(g, forAdmin: false))
+                .ToList());
 
-    private static DavetiyeAdminDto MapAdmin(
+    private DavetiyeAdminDto MapAdmin(
         DavetiyeAyarlari ayar,
         IReadOnlyList<TimelineOgesi> timeline,
         IReadOnlyList<GaleriResmi> galeri) =>
         new(
             ayar.DavetUid,
+            ayar.PanelUid,
             ayar.GelinAdi,
             ayar.DamatAdi,
             ayar.BasHarpler,
@@ -133,5 +121,15 @@ public class DavetiyeService : IDavetiyeService
             ayar.ZarfArkaPlanUrl,
             ayar.GaleriDriveKlasorUrl,
             timeline.Select(t => new TimelineDto(t.Id, t.Baslik, t.Aciklama, t.Saat, t.Sira)).ToList(),
-            galeri.Select(g => new GaleriDto(g.Id, g.Url, g.AltMetin, g.Sira)).ToList());
+            galeri.Select(g => MapGaleri(g, forAdmin: true)).ToList());
+
+    private GaleriDto MapGaleri(GaleriResmi item, bool forAdmin)
+    {
+        var misafir = _mediaSigner.IsGuestUploadUrl(item.Url);
+        var url = misafir
+            ? _mediaSigner.SignGuestFile(_mediaSigner.TryGetFileName(item.Url)!, forAdmin)
+            : item.Url;
+
+        return new GaleriDto(item.Id, url, item.AltMetin, item.Sira, item.Onaylandi, misafir);
+    }
 }

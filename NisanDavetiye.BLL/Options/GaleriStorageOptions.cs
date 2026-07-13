@@ -9,6 +9,8 @@ public class GaleriStorageOptions
 
     public string PublicUrlPrefix { get; set; } = "/uploads/galeri";
 
+    public int MaxDailyUploadCount { get; set; } = 100;
+
     /// <summary>Resolved absolute path; set during API startup.</summary>
     public string AbsoluteUploadDirectory { get; set; } = "";
 }

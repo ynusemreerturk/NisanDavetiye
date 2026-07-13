@@ -4,6 +4,7 @@ import { useInviteKey } from '../context/InviteContext'
 import { excellenceAssets } from '../excellence/assets'
 import { FadeIn } from './excellence/FadeIn'
 import { ExcellenceSectionHeader } from './excellence/SectionHeader'
+import { TurnstileWidget } from './TurnstileWidget'
 
 const PHONE_PATTERN = /^0\d{10}$/
 
@@ -20,6 +21,8 @@ export function RsvpSection() {
   const [mesaj, setMesaj] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [error, setError] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaResetKey, setCaptchaResetKey] = useState(0)
 
   const handleTelefonChange = (e: ChangeEvent<HTMLInputElement>) => {
     setTelefon(formatPhoneInput(e.target.value))
@@ -43,19 +46,35 @@ export function RsvpSection() {
       return
     }
 
+    if (!captchaToken) {
+      setError('Lütfen güvenlik doğrulamasını tamamlayın.')
+      return
+    }
+
     setStatus('loading')
     setError('')
     try {
-      await submitRsvp(inviteKey, { adSoyad: adSoyad.trim(), telefon, katilacak, kisiSayisi, mesaj })
+      await submitRsvp(inviteKey, {
+        adSoyad: adSoyad.trim(),
+        telefon,
+        katilacak,
+        kisiSayisi,
+        mesaj,
+        captchaToken,
+      })
       setStatus('success')
       setAdSoyad('')
       setTelefon('')
       setMesaj('')
       setKisiSayisi(1)
       setKatilacak(null)
+      setCaptchaToken('')
+      setCaptchaResetKey((k) => k + 1)
     } catch (err) {
       setStatus('error')
       setError(err instanceof Error ? err.message : 'Bir hata oluştu')
+      setCaptchaToken('')
+      setCaptchaResetKey((k) => k + 1)
     }
   }
 
@@ -141,6 +160,11 @@ export function RsvpSection() {
             </label>
 
             <div className="ex-rsvp__submit-wrap">
+              <TurnstileWidget
+                resetKey={captchaResetKey}
+                onToken={setCaptchaToken}
+                onExpire={() => setCaptchaToken('')}
+              />
               <img
                 src={excellenceAssets.vaseLeft}
                 alt=""

@@ -11,19 +11,30 @@ namespace NisanDavetiye.API.Controllers;
 public class GaleriController : ControllerBase
 {
     private readonly IGaleriService _service;
+    private readonly ICaptchaService _captcha;
 
-    public GaleriController(IGaleriService service) => _service = service;
+    public GaleriController(IGaleriService service, ICaptchaService captcha)
+    {
+        _service = service;
+        _captcha = captcha;
+    }
 
     [HttpPost("upload")]
     [EnableRateLimiting("public-forms")]
     [RequestFormLimits(MultipartBodyLengthLimit = 160_000_000)]
     public async Task<ActionResult<GaleriUploadResultDto>> Upload(
         [FromForm] List<IFormFile> files,
+        [FromForm] string captchaToken,
         CancellationToken cancellationToken)
     {
         var uploads = new List<GaleriUploadFile>();
         try
         {
+            await _captcha.ValidateOrThrowAsync(
+                captchaToken,
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                cancellationToken);
+
             foreach (var file in files.Where(f => f.Length > 0))
             {
                 var stream = new MemoryStream();

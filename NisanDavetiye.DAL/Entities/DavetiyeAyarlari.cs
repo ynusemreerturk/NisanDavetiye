@@ -5,6 +5,8 @@ public class DavetiyeAyarlari
     public int Id { get; set; } = 1;
     /// <summary>Gizli davetiye linki anahtarı (32 karakter hex).</summary>
     public string DavetUid { get; set; } = string.Empty;
+    /// <summary>Gizli yönetim paneli linki anahtarı (32 karakter hex).</summary>
+    public string PanelUid { get; set; } = string.Empty;
     public string GelinAdi { get; set; } = string.Empty;
     public string DamatAdi { get; set; } = string.Empty;
     public string BasHarpler { get; set; } = string.Empty;

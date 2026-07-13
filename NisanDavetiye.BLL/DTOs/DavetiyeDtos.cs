@@ -2,7 +2,7 @@ namespace NisanDavetiye.BLL.DTOs;
 
 public record TimelineDto(int Id, string Baslik, string Aciklama, string Saat, int Sira);
 
-public record GaleriDto(int Id, string Url, string AltMetin, int Sira);
+public record GaleriDto(int Id, string Url, string AltMetin, int Sira, bool Onaylandi, bool MisafirYuklemesi);
 
 public record DavetiyeDto(
     string GelinAdi,
@@ -26,6 +26,7 @@ public record DavetiyeDto(
 
 public record DavetiyeAdminDto(
     string DavetUid,
+    string PanelUid,
     string GelinAdi,
     string DamatAdi,
     string BasHarpler,
@@ -65,6 +66,12 @@ public record DavetiyeGuncelleDto(
     IReadOnlyList<TimelineDto> Timeline,
     IReadOnlyList<GaleriDto> Galeri);
 
-public record RsvpOlusturDto(string AdSoyad, string Telefon, bool Katilacak, int KisiSayisi, string Mesaj);
+public record RsvpOlusturDto(
+    string AdSoyad,
+    string Telefon,
+    bool Katilacak,
+    int KisiSayisi,
+    string? Mesaj,
+    string CaptchaToken);
 
 public record RsvpDto(int Id, string AdSoyad, string Telefon, bool Katilacak, int KisiSayisi, string Mesaj, DateTime OlusturmaTarihi);

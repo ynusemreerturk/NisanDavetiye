@@ -32,6 +32,22 @@ public class DavetiyeRepository : IDavetiyeRepository
         await _db.SaveChangesAsync();
     }
 
+    public async Task<string?> GetPanelUidAsync()
+    {
+        var ayar = await _db.DavetiyeAyarlari.AsNoTracking().FirstOrDefaultAsync();
+        return string.IsNullOrEmpty(ayar?.PanelUid) ? null : ayar.PanelUid;
+    }
+
+    public async Task EnsurePanelUidAsync()
+    {
+        var ayar = await _db.DavetiyeAyarlari.FirstOrDefaultAsync();
+        if (ayar is null || !string.IsNullOrEmpty(ayar.PanelUid))
+            return;
+
+        ayar.PanelUid = Guid.NewGuid().ToString("N");
+        await _db.SaveChangesAsync();
+    }
+
     public async Task UpdateAyarlariAsync(DavetiyeAyarlari ayarlar)
     {
         _db.DavetiyeAyarlari.Update(ayarlar);
@@ -54,6 +70,22 @@ public class DavetiyeRepository : IDavetiyeRepository
 
     public Task<GaleriResmi?> GetGaleriResmiByIdAsync(int id) =>
         _db.GaleriResimleri.FirstOrDefaultAsync(g => g.Id == id);
+
+    public Task<int> CountGuestUploadsSinceAsync(DateTime sinceUtc, string uploadUrlPrefix)
+    {
+        var prefix = uploadUrlPrefix.TrimEnd('/') + "/";
+        return _db.GaleriResimleri
+            .Where(g => g.Url.StartsWith(prefix) && g.YuklemeTarihi >= sinceUtc)
+            .CountAsync();
+    }
+
+    public async Task SetGaleriOnayAsync(int id, bool onaylandi)
+    {
+        var item = await _db.GaleriResimleri.FindAsync(id);
+        if (item is null) return;
+        item.Onaylandi = onaylandi;
+        await _db.SaveChangesAsync();
+    }
 
     public async Task<int> GetNextGaleriSiraAsync()
     {

@@ -2,6 +2,7 @@ using System.IO.Compression;
 using Microsoft.Extensions.Options;
 using NisanDavetiye.BLL.DTOs;
 using NisanDavetiye.BLL.Options;
+using NisanDavetiye.BLL.Security;
 using NisanDavetiye.DAL.Entities;
 using NisanDavetiye.DAL.Repositories;
 
@@ -23,11 +24,16 @@ public class GaleriService : IGaleriService
 
     private readonly IDavetiyeRepository _repo;
     private readonly GaleriStorageOptions _storage;
+    private readonly IMediaUrlSigner _mediaSigner;
 
-    public GaleriService(IDavetiyeRepository repo, IOptions<GaleriStorageOptions> storageOptions)
+    public GaleriService(
+        IDavetiyeRepository repo,
+        IOptions<GaleriStorageOptions> storageOptions,
+        IMediaUrlSigner mediaSigner)
     {
         _repo = repo;
         _storage = storageOptions.Value;
+        _mediaSigner = mediaSigner;
     }
 
     public async Task<GaleriUploadResultDto> UploadAsync(
@@ -41,10 +47,13 @@ public class GaleriService : IGaleriService
             throw new ArgumentException($"Tek seferde en fazla {MaxFilesPerRequest} fotoğraf yükleyebilirsiniz.");
 
         if (string.IsNullOrWhiteSpace(_storage.AbsoluteUploadDirectory))
-        {
-            throw new InvalidOperationException(
-                "Galeri depolama klasörü yapılandırılmamış.");
-        }
+            throw new InvalidOperationException("Galeri depolama klasörü yapılandırılmamış.");
+
+        var today = DateTime.UtcNow.Date;
+        var prefix = _storage.PublicUrlPrefix.TrimEnd('/');
+        var uploadsToday = await _repo.CountGuestUploadsSinceAsync(today, prefix);
+        if (uploadsToday + files.Count > _storage.MaxDailyUploadCount)
+            throw new ArgumentException("Günlük fotoğraf yükleme limitine ulaşıldı. Lütfen daha sonra tekrar deneyin.");
 
         Directory.CreateDirectory(_storage.AbsoluteUploadDirectory);
 
@@ -55,18 +64,24 @@ public class GaleriService : IGaleriService
 
             if (!AllowedContentTypes.Contains(file.ContentType))
                 throw new ArgumentException($"{file.FileName} desteklenmeyen bir dosya türü.");
+
+            if (!ImageFileValidator.TryDetect(file.ContentType, file.Content, out _))
+                throw new ArgumentException($"{file.FileName} geçerli bir görüntü dosyası değil.");
         }
 
-        var publicPrefix = _storage.PublicUrlPrefix.TrimEnd('/');
         var nextSira = await _repo.GetNextGaleriSiraAsync();
         var uploadedNames = new List<string>();
         var newItems = new List<GaleriResmi>();
+        var now = DateTime.UtcNow;
 
         foreach (var file in files)
         {
-            var ext = ExtensionFromContentType(file.ContentType);
+            if (!ImageFileValidator.TryDetect(file.ContentType, file.Content, out var detectedType))
+                throw new ArgumentException($"{file.FileName} geçerli bir görüntü dosyası değil.");
+
+            var ext = ExtensionFromContentType(detectedType);
             var id = Guid.NewGuid().ToString("N")[..8];
-            var storedName = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{id}{ext}";
+            var storedName = $"{now:yyyyMMdd-HHmmss}-{id}{ext}";
             var diskPath = Path.Combine(_storage.AbsoluteUploadDirectory, storedName);
 
             if (file.Content.CanSeek)
@@ -78,13 +93,15 @@ public class GaleriService : IGaleriService
             }
 
             var displayName = SanitizeDisplayName(file.FileName);
-            var url = $"{publicPrefix}/{storedName}";
+            var url = $"{prefix}/{storedName}";
 
             newItems.Add(new GaleriResmi
             {
                 Url = url,
                 AltMetin = displayName,
                 Sira = nextSira++,
+                Onaylandi = false,
+                YuklemeTarihi = now,
             });
 
             uploadedNames.Add(displayName);
@@ -92,7 +109,36 @@ public class GaleriService : IGaleriService
 
         await _repo.AddGaleriResimleriAsync(newItems);
 
-        return new GaleriUploadResultDto(uploadedNames.Count, uploadedNames);
+        return new GaleriUploadResultDto(
+            uploadedNames.Count,
+            uploadedNames,
+            "Fotoğraflar yüklendi. Yönetici onayından sonra yayınlanacaktır.");
+    }
+
+    public async Task<GaleriDto> ApproveUploadedPhotoAsync(int id)
+    {
+        var item = await _repo.GetGaleriResmiByIdAsync(id)
+            ?? throw new KeyNotFoundException("Fotoğraf bulunamadı.");
+
+        if (!_mediaSigner.IsGuestUploadUrl(item.Url))
+            throw new InvalidOperationException("Bu kayıt misafir yüklemesi değil.");
+
+        await _repo.SetGaleriOnayAsync(id, true);
+        item.Onaylandi = true;
+        return MapDto(item, forAdmin: true);
+    }
+
+    public async Task<GaleriSilResultDto> RejectUploadedPhotoAsync(int id)
+    {
+        var item = await _repo.GetGaleriResmiByIdAsync(id)
+            ?? throw new KeyNotFoundException("Fotoğraf bulunamadı.");
+
+        if (!_mediaSigner.IsGuestUploadUrl(item.Url))
+            throw new InvalidOperationException("Bu kayıt misafir yüklemesi değil.");
+
+        DeleteDiskFile(item.Url);
+        await _repo.DeleteGaleriResmiAsync(id);
+        return new GaleriSilResultDto(1);
     }
 
     public async Task<(byte[] Content, string FileName)> ExportUploadedZipAsync(
@@ -133,7 +179,7 @@ public class GaleriService : IGaleriService
         var item = await _repo.GetGaleriResmiByIdAsync(id)
             ?? throw new KeyNotFoundException("Fotoğraf bulunamadı.");
 
-        if (!IsUploadedUrl(item.Url))
+        if (!_mediaSigner.IsGuestUploadUrl(item.Url))
             throw new InvalidOperationException("Bu kayıt misafir yüklemesi değil.");
 
         DeleteDiskFile(item.Url);
@@ -157,26 +203,26 @@ public class GaleriService : IGaleriService
         return new GaleriSilResultDto(deleted);
     }
 
+    private GaleriDto MapDto(GaleriResmi item, bool forAdmin)
+    {
+        var misafir = _mediaSigner.IsGuestUploadUrl(item.Url);
+        var url = misafir
+            ? _mediaSigner.SignGuestFile(_mediaSigner.TryGetFileName(item.Url)!, forAdmin)
+            : item.Url;
+
+        return new GaleriDto(item.Id, url, item.AltMetin, item.Sira, item.Onaylandi, misafir);
+    }
+
     private async Task<IReadOnlyList<GaleriResmi>> GetUploadedItemsAsync()
     {
         var all = await _repo.GetGaleriAsync();
-        return all.Where(g => IsUploadedUrl(g.Url)).ToList();
-    }
-
-    private bool IsUploadedUrl(string url)
-    {
-        var prefix = _storage.PublicUrlPrefix.TrimEnd('/');
-        return url.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase);
+        return all.Where(g => _mediaSigner.IsGuestUploadUrl(g.Url)).ToList();
     }
 
     private string? ResolveDiskPath(string url)
     {
-        if (!IsUploadedUrl(url))
-            return null;
-
-        var prefix = _storage.PublicUrlPrefix.TrimEnd('/');
-        var fileName = Path.GetFileName(url[(prefix.Length + 1)..]);
-        if (string.IsNullOrWhiteSpace(fileName))
+        var fileName = _mediaSigner.TryGetFileName(url);
+        if (fileName is null)
             return null;
 
         return Path.Combine(_storage.AbsoluteUploadDirectory, fileName);

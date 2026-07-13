@@ -1,4 +1,5 @@
 using NisanDavetiye.BLL.DTOs;
+using NisanDavetiye.BLL.Services;
 
 namespace NisanDavetiye.BLL.Services;
 
@@ -14,4 +15,8 @@ public interface IGaleriService
     Task<GaleriSilResultDto> DeleteUploadedPhotoAsync(int id);
 
     Task<GaleriSilResultDto> DeleteAllUploadedPhotosAsync();
+
+    Task<GaleriDto> ApproveUploadedPhotoAsync(int id);
+
+    Task<GaleriSilResultDto> RejectUploadedPhotoAsync(int id);
 }

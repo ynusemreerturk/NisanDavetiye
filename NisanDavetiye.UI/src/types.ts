@@ -11,6 +11,8 @@ export interface GaleriItem {
   url: string
   altMetin: string
   sira: number
+  onaylandi: boolean
+  misafirYuklemesi: boolean
 }
 
 export interface Davetiye {
@@ -36,6 +38,7 @@ export interface Davetiye {
 
 export interface DavetiyeAdmin extends Davetiye {
   davetUid: string
+  panelUid: string
 }
 
 export interface RsvpInput {
@@ -44,6 +47,7 @@ export interface RsvpInput {
   katilacak: boolean
   kisiSayisi: number
   mesaj: string
+  captchaToken: string
 }
 
 export interface RsvpRecord extends RsvpInput {

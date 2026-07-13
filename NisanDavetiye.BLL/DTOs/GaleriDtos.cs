@@ -1,6 +1,9 @@
 namespace NisanDavetiye.BLL.DTOs;
 
-public record GaleriUploadResultDto(int UploadedCount, IReadOnlyList<string> FileNames);
+public record GaleriUploadResultDto(
+    int UploadedCount,
+    IReadOnlyList<string> FileNames,
+    string Message);
 
 public record GaleriSilResultDto(int DeletedCount);
 

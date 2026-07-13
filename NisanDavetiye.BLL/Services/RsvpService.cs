@@ -1,5 +1,5 @@
-using ClosedXML.Excel;
 using NisanDavetiye.BLL.DTOs;
+using NisanDavetiye.BLL.Security;
 using NisanDavetiye.DAL.Entities;
 using NisanDavetiye.DAL.Repositories;
 
@@ -23,13 +23,17 @@ public class RsvpService : IRsvpService
         if (telefon is null)
             throw new ArgumentException("Telefon numarası 0 ile başlamalı ve 11 haneli olmalıdır.");
 
+        if (await _repo.ExistsByTelefonAsync(telefon))
+            throw new ArgumentException("Bu telefon numarasıyla daha önce yanıt verilmiş.");
+
         if (dto.KisiSayisi < 1)
             throw new ArgumentException("Kişi sayısı en az 1 olmalıdır.");
 
         if (dto.KisiSayisi > 10)
             throw new ArgumentException("Kişi sayısı en fazla 10 olabilir.");
 
-        if (dto.Mesaj.Trim().Length > 500)
+        var mesaj = dto.Mesaj?.Trim() ?? string.Empty;
+        if (mesaj.Length > 500)
             throw new ArgumentException("Mesaj en fazla 500 karakter olabilir.");
 
         var kayit = new RsvpKayit
@@ -38,7 +42,7 @@ public class RsvpService : IRsvpService
             Telefon = telefon,
             Katilacak = dto.Katilacak,
             KisiSayisi = dto.Katilacak ? dto.KisiSayisi : 0,
-            Mesaj = dto.Mesaj.Trim(),
+            Mesaj = mesaj,
             OlusturmaTarihi = DateTime.UtcNow
         };
 
@@ -58,7 +62,7 @@ public class RsvpService : IRsvpService
     {
         var list = await _repo.GetAllAsync();
 
-        using var workbook = new XLWorkbook();
+        using var workbook = new ClosedXML.Excel.XLWorkbook();
         var sheet = workbook.Worksheets.Add("Katılım Yanıtları");
 
         sheet.Cell(1, 1).Value = "Ad Soyad";

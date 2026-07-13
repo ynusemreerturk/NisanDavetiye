@@ -29,6 +29,9 @@ public class RsvpRepository : IRsvpRepository
     public Task<RsvpKayit?> GetByIdAsync(int id) =>
         _db.RsvpKayitlari.FirstOrDefaultAsync(r => r.Id == id);
 
+    public Task<bool> ExistsByTelefonAsync(string telefon) =>
+        _db.RsvpKayitlari.AnyAsync(r => r.Telefon == telefon);
+
     public async Task HideFromAdminAsync(int id)
     {
         var kayit = await _db.RsvpKayitlari.FindAsync(id);

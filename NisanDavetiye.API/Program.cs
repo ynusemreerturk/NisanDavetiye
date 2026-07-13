@@ -1,6 +1,6 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
 using NisanDavetiye.API.Middleware;
 using NisanDavetiye.BLL;
 using NisanDavetiye.BLL.Options;
@@ -21,16 +21,41 @@ builder.Services.AddControllers()
 builder.Services.AddDal(connectionString);
 builder.Services.AddBll(builder.Configuration);
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("public-forms", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            ResolveClientIp(httpContext),
             _ => new FixedWindowRateLimiterOptions
             {
                 Window = TimeSpan.FromMinutes(1),
                 PermitLimit = 20,
+                QueueLimit = 0
+            }));
+    options.AddPolicy("panel-api", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"panel:{ResolveClientIp(httpContext)}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 60,
+                QueueLimit = 0
+            }));
+    options.AddPolicy("panel-access", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"panel-access:{ResolveClientIp(httpContext)}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 30,
                 QueueLimit = 0
             }));
 });
@@ -46,7 +71,32 @@ builder.Services.Configure<GaleriStorageOptions>(options =>
     options.UploadDirectory = galeriUploadRelative;
     options.PublicUrlPrefix = galeriPublicPrefix;
     options.AbsoluteUploadDirectory = galeriAbsolutePath;
+    options.MaxDailyUploadCount = builder.Configuration.GetValue("GaleriStorage:MaxDailyUploadCount", 100);
 });
+
+var adminApiKey = builder.Configuration["Admin:ApiKey"] ?? string.Empty;
+if (!builder.Environment.IsDevelopment())
+{
+    if (string.IsNullOrWhiteSpace(adminApiKey) || adminApiKey.Length < 32)
+    {
+        throw new InvalidOperationException(
+            "Üretim ortamında Admin:ApiKey en az 32 karakter olmalıdır.");
+    }
+}
+else if (string.IsNullOrWhiteSpace(adminApiKey) || adminApiKey.Length < 32)
+{
+    Console.WriteLine("UYARI: Admin:ApiKey zayıf veya eksik. Üretimde en az 32 karakter kullanın.");
+}
+
+var mediaSigningKey = builder.Configuration["MediaSigning:SigningKey"];
+if (string.IsNullOrWhiteSpace(mediaSigningKey))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("MediaSigning:SigningKey yapılandırılmalıdır.");
+
+    mediaSigningKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48));
+    builder.Configuration["MediaSigning:SigningKey"] = mediaSigningKey;
+}
 
 builder.Services.AddCors(options =>
 {
@@ -73,21 +123,37 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
     await EnsureRsvpSchemaAsync(db);
     await EnsureDavetUidSchemaAsync(db);
+    await EnsurePanelUidSchemaAsync(db);
+    await EnsureGaleriOnaySchemaAsync(db);
     await davetiyeRepo.EnsureDavetUidAsync();
+    await davetiyeRepo.EnsurePanelUidAsync();
     await DavetiyeDataSeeder.SeedAsync(db);
+
+    var panelUidForLog = await davetiyeRepo.GetPanelUidAsync();
+    if (!string.IsNullOrEmpty(panelUidForLog))
+    {
+        app.Logger.LogInformation(
+            "Yönetim paneli: http://localhost:5173/p/{PanelUid}",
+            panelUidForLog);
+    }
 }
 
+app.UseForwardedHeaders();
 app.UseCors("UiPolicy");
 app.UseRateLimiter();
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(galeriStorage.AbsoluteUploadDirectory),
-    RequestPath = galeriStorage.PublicUrlPrefix.TrimEnd('/'),
-});
 app.UseSecurity();
 app.MapControllers();
 
 app.Run();
+
+static string ResolveClientIp(HttpContext httpContext)
+{
+    var forwarded = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+    if (!string.IsNullOrWhiteSpace(forwarded))
+        return forwarded.Split(',')[0].Trim();
+
+    return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+}
 
 static async Task EnsureRsvpSchemaAsync(NisanDavetiyeDbContext db)
 {
@@ -135,4 +201,69 @@ static async Task EnsureDavetUidSchemaAsync(NisanDavetiyeDbContext db)
         ADD COLUMN DavetUid TEXT NOT NULL DEFAULT ''
         """;
     await alter.ExecuteNonQueryAsync();
+}
+
+static async Task EnsurePanelUidSchemaAsync(NisanDavetiyeDbContext db)
+{
+    await using var connection = db.Database.GetDbConnection();
+    if (connection.State != System.Data.ConnectionState.Open)
+        await connection.OpenAsync();
+
+    await using var check = connection.CreateCommand();
+    check.CommandText = """
+        SELECT COUNT(*)
+        FROM pragma_table_info('DavetiyeAyarlari')
+        WHERE name = 'PanelUid'
+        """;
+    var exists = Convert.ToInt64(await check.ExecuteScalarAsync() ?? 0L) > 0;
+    if (exists)
+        return;
+
+    await using var alter = connection.CreateCommand();
+    alter.CommandText = """
+        ALTER TABLE DavetiyeAyarlari
+        ADD COLUMN PanelUid TEXT NOT NULL DEFAULT ''
+        """;
+    await alter.ExecuteNonQueryAsync();
+}
+
+static async Task EnsureGaleriOnaySchemaAsync(NisanDavetiyeDbContext db)
+{
+    await using var connection = db.Database.GetDbConnection();
+    if (connection.State != System.Data.ConnectionState.Open)
+        await connection.OpenAsync();
+
+    await using var checkOnay = connection.CreateCommand();
+    checkOnay.CommandText = """
+        SELECT COUNT(*)
+        FROM pragma_table_info('GaleriResimleri')
+        WHERE name = 'Onaylandi'
+        """;
+    var onayExists = Convert.ToInt64(await checkOnay.ExecuteScalarAsync() ?? 0L) > 0;
+    if (!onayExists)
+    {
+        await using var alterOnay = connection.CreateCommand();
+        alterOnay.CommandText = """
+            ALTER TABLE GaleriResimleri
+            ADD COLUMN Onaylandi INTEGER NOT NULL DEFAULT 1
+            """;
+        await alterOnay.ExecuteNonQueryAsync();
+    }
+
+    await using var checkTarih = connection.CreateCommand();
+    checkTarih.CommandText = """
+        SELECT COUNT(*)
+        FROM pragma_table_info('GaleriResimleri')
+        WHERE name = 'YuklemeTarihi'
+        """;
+    var tarihExists = Convert.ToInt64(await checkTarih.ExecuteScalarAsync() ?? 0L) > 0;
+    if (!tarihExists)
+    {
+        await using var alterTarih = connection.CreateCommand();
+        alterTarih.CommandText = """
+            ALTER TABLE GaleriResimleri
+            ADD COLUMN YuklemeTarihi TEXT NOT NULL DEFAULT (datetime('now'))
+            """;
+        await alterTarih.ExecuteNonQueryAsync();
+    }
 }

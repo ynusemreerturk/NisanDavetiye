@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import {
+  approveGalleryPhoto,
   deleteAllUploadedGalleryPhotos,
   deleteGalleryPhoto,
   deleteRsvp,
@@ -8,13 +9,20 @@ import {
   exportRsvpExcel,
   fetchDavetiyeAdmin,
   fetchRsvpList,
+  rejectGalleryPhoto,
   updateDavetiye,
+  verifyPanelAccess,
 } from '../api/client'
 import type { DavetiyeAdmin, RsvpRecord } from '../types'
 
 const ADMIN_KEY_STORAGE = 'nisan-admin-key'
+const PANEL_UID_PATTERN = /^[a-f0-9]{32}$/i
 
 export function AdminPage() {
+  const { panelUid: panelUidParam = '' } = useParams()
+  const panelUid = panelUidParam.trim()
+
+  const [accessValid, setAccessValid] = useState<boolean | null>(null)
   const [adminKey, setAdminKey] = useState(() => localStorage.getItem(ADMIN_KEY_STORAGE) ?? '')
   const [loggedIn, setLoggedIn] = useState(false)
   const [davetiye, setDavetiye] = useState<DavetiyeAdmin | null>(null)
@@ -23,7 +31,10 @@ export function AdminPage() {
   const [error, setError] = useState('')
 
   const loadData = async (key: string) => {
-    const [d, r] = await Promise.all([fetchDavetiyeAdmin(key), fetchRsvpList(key)])
+    const [d, r] = await Promise.all([
+      fetchDavetiyeAdmin(panelUid, key),
+      fetchRsvpList(panelUid, key),
+    ])
     setDavetiye(d)
     setRsvpList(r)
     setLoggedIn(true)
@@ -31,10 +42,21 @@ export function AdminPage() {
   }
 
   useEffect(() => {
-    if (adminKey) {
+    if (!PANEL_UID_PATTERN.test(panelUid)) {
+      setAccessValid(false)
+      return
+    }
+
+    verifyPanelAccess(panelUid)
+      .then(setAccessValid)
+      .catch(() => setAccessValid(false))
+  }, [panelUid])
+
+  useEffect(() => {
+    if (accessValid && adminKey) {
       loadData(adminKey).catch(() => setLoggedIn(false))
     }
-  }, [])
+  }, [accessValid])
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
@@ -42,7 +64,7 @@ export function AdminPage() {
     try {
       await loadData(adminKey)
     } catch {
-      setError('Geçersiz admin anahtarı')
+      setError('Geçersiz yönetim anahtarı')
       setLoggedIn(false)
     }
   }
@@ -52,7 +74,7 @@ export function AdminPage() {
     if (!davetiye) return
     setMessage('')
     try {
-      const updated = await updateDavetiye(davetiye, adminKey)
+      const updated = await updateDavetiye(davetiye, panelUid, adminKey)
       setDavetiye(updated)
       setMessage('Davetiye ayarları kaydedildi.')
     } catch {
@@ -62,7 +84,7 @@ export function AdminPage() {
 
   const handleExport = async () => {
     try {
-      const blob = await exportRsvpExcel(adminKey)
+      const blob = await exportRsvpExcel(panelUid, adminKey)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -74,7 +96,8 @@ export function AdminPage() {
     }
   }
 
-  const uploadedPhotos = davetiye?.galeri.filter((g) => g.url.startsWith('/uploads/')) ?? []
+  const pendingPhotos = davetiye?.galeri.filter((g) => g.misafirYuklemesi && !g.onaylandi) ?? []
+  const uploadedPhotos = davetiye?.galeri.filter((g) => g.misafirYuklemesi && g.onaylandi) ?? []
 
   const showError = (text: string) => {
     setMessage('')
@@ -95,7 +118,7 @@ export function AdminPage() {
       return
     }
     try {
-      await deleteRsvp(id, adminKey)
+      await deleteRsvp(id, panelUid, adminKey)
       setRsvpList((prev) => prev.filter((r) => r.id !== id))
       showSuccess('Kayıt listeden kaldırıldı. Excel indirdiğinizde hâlâ görünür.')
     } catch (err) {
@@ -114,7 +137,7 @@ export function AdminPage() {
 
   const handleDownloadGalleryZip = async () => {
     try {
-      const blob = await downloadGalleryZip(adminKey)
+      const blob = await downloadGalleryZip(panelUid, adminKey)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -132,11 +155,32 @@ export function AdminPage() {
       return
     }
     try {
-      await deleteGalleryPhoto(id, adminKey)
+      await deleteGalleryPhoto(id, panelUid, adminKey)
       await loadData(adminKey)
       showSuccess('Fotoğraf sunucudan silindi.')
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Fotoğraf silinemedi.')
+    }
+  }
+
+  const handleApprovePhoto = async (id: number) => {
+    try {
+      await approveGalleryPhoto(id, panelUid, adminKey)
+      await loadData(adminKey)
+      showSuccess('Fotoğraf onaylandı ve davetiyede yayınlanacak.')
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Fotoğraf onaylanamadı.')
+    }
+  }
+
+  const handleRejectPhoto = async (id: number) => {
+    if (!confirm('Bu fotoğraf reddedilsin ve sunucudan silinsin mi?')) return
+    try {
+      await rejectGalleryPhoto(id, panelUid, adminKey)
+      await loadData(adminKey)
+      showSuccess('Fotoğraf reddedildi ve silindi.')
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Fotoğraf reddedilemedi.')
     }
   }
 
@@ -150,7 +194,7 @@ export function AdminPage() {
       return
     }
     try {
-      const result = await deleteAllUploadedGalleryPhotos(adminKey)
+      const result = await deleteAllUploadedGalleryPhotos(panelUid, adminKey)
       await loadData(adminKey)
       showSuccess(`${result.deletedCount} fotoğraf sunucudan silindi; alan açıldı.`)
     } catch (err) {
@@ -162,6 +206,10 @@ export function AdminPage() {
     ? `${window.location.origin}/i/${davetiye.davetUid}`
     : ''
 
+  const panelUrl = davetiye
+    ? `${window.location.origin}/p/${davetiye.panelUid}`
+    : `${window.location.origin}/p/${panelUid}`
+
   const handleCopyInviteLink = async () => {
     if (!inviteUrl) return
     try {
@@ -172,18 +220,36 @@ export function AdminPage() {
     }
   }
 
+  const handleCopyPanelLink = async () => {
+    if (!panelUrl) return
+    try {
+      await navigator.clipboard.writeText(panelUrl)
+      showSuccess('Yönetim paneli linki panoya kopyalandı.')
+    } catch {
+      showError('Link kopyalanamadı. Aşağıdaki adresi elle paylaşın.')
+    }
+  }
+
+  if (accessValid === null) {
+    return <div className="loading-screen">Yükleniyor...</div>
+  }
+
+  if (!accessValid) {
+    return <div className="loading-screen">Geçersiz yönetim bağlantısı.</div>
+  }
+
   if (!loggedIn) {
     return (
       <div className="admin">
         <div className="admin__login">
-          <h1>Admin Paneli</h1>
+          <h1>Yönetim Paneli</h1>
           <p className="admin__hint">Yalnızca yetkili kişiler giriş yapabilir.</p>
           <form onSubmit={handleLogin}>
             <input
               type="password"
               value={adminKey}
               onChange={(e) => setAdminKey(e.target.value)}
-              placeholder="Admin anahtarı"
+              placeholder="Yönetim anahtarı"
               required
             />
             <button type="submit" className="btn-primary">Giriş</button>
@@ -199,7 +265,7 @@ export function AdminPage() {
   return (
     <div className="admin">
       <header className="admin__header">
-        <h1>Admin Paneli</h1>
+        <h1>Yönetim Paneli</h1>
         <div className="admin__actions">
           <button type="button" className="btn-outline" onClick={handleRefresh}>
             Yenile
@@ -212,9 +278,23 @@ export function AdminPage() {
       </header>
 
       <section className="admin__invite-link">
+        <h2>Yönetim Paneli Linki</h2>
+        <p className="admin__hint">
+          Bu gizli linki yalnızca yetkili kişilerle paylaşın. Tahmin edilebilir adresler
+          (<code>/admin</code>, <code>/yonetim</code> vb.) kullanılmaz.
+        </p>
+        <div className="admin__invite-row">
+          <input readOnly value={panelUrl} aria-label="Yönetim paneli linki" />
+          <button type="button" className="btn-outline" onClick={handleCopyPanelLink}>
+            Kopyala
+          </button>
+        </div>
+      </section>
+
+      <section className="admin__invite-link">
         <h2>Davetiye Linki</h2>
         <p className="admin__hint">
-          Bu linki yalnızca davetlilerle paylaşın. Ana sayfa (<code>/</code>) artık davetiyeyi göstermez.
+          Bu linki yalnızca davetlilerle paylaşın. Ana sayfa (<code>/</code>) davetiyeyi göstermez.
         </p>
         <div className="admin__invite-row">
           <input readOnly value={inviteUrl} aria-label="Davetiye linki" />
@@ -293,7 +373,43 @@ export function AdminPage() {
 
       <section className="admin__gallery">
         <div className="admin__gallery-header">
-          <h2>Yüklenen Fotoğraflar ({uploadedPhotos.length})</h2>
+          <h2>Onay Bekleyen Fotoğraflar ({pendingPhotos.length})</h2>
+        </div>
+        <p className="admin__hint">
+          Misafir yüklemeleri yönetici onayından sonra davetiyede görünür.
+        </p>
+        {pendingPhotos.length === 0 ? (
+          <p className="admin__hint">Onay bekleyen fotoğraf yok.</p>
+        ) : (
+          <div className="admin__gallery-grid">
+            {pendingPhotos.map((photo) => (
+              <div key={photo.id} className="admin__gallery-card">
+                <a
+                  href={photo.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="admin__gallery-item"
+                  title={photo.altMetin || 'Fotoğraf'}
+                >
+                  <img src={photo.url} alt={photo.altMetin || 'Onay bekleyen fotoğraf'} loading="lazy" />
+                </a>
+                <div className="admin__gallery-actions">
+                  <button type="button" className="btn-outline" onClick={() => handleApprovePhoto(photo.id)}>
+                    Onayla
+                  </button>
+                  <button type="button" className="btn-outline admin__danger" onClick={() => handleRejectPhoto(photo.id)}>
+                    Reddet
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="admin__gallery">
+        <div className="admin__gallery-header">
+          <h2>Onaylanan Fotoğraflar ({uploadedPhotos.length})</h2>
           {uploadedPhotos.length > 0 && (
             <div className="admin__gallery-actions">
               <button type="button" className="btn-outline" onClick={handleDownloadGalleryZip}>

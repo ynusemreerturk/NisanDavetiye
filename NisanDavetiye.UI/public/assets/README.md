@@ -11,4 +11,4 @@ Bu klasördeki dosyaları kendi görsellerinizle değiştirin.
 | video/acilis.mp4 | Açılış videosu |
 | audio/ballerina.mp3 | Arka plan müziği — Yehezkel Raz, «Ballerina» ([YouTube](https://youtu.be/bDj3_B51f-U)) |
 
-Admin panelinden (`/admin`) URL'leri de güncelleyebilirsiniz.
+Yönetim panelinden URL'leri de güncelleyebilirsiniz (`/p/{panelUid}`).

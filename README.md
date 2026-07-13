@@ -31,20 +31,25 @@ npm install
 npm run dev
 ```
 
-Davetiye linki admin panelinde görünür (`/admin` → **Davetiye Linki**).  
-Ana sayfa (`/`) artık davetiyeyi göstermez; yalnızca `/i/{uid}` ile erişilir.
+Davetiye linki yönetim panelinde görünür. Yönetim paneli linki API başlatıldığında konsola yazılır (`/p/{panelUid}`).  
+Ana sayfa (`/`) davetiyeyi göstermez; yalnızca `/i/{uid}` ile erişilir.
 
-Admin: http://localhost:5173/admin
+**Yönetim paneli:** API'yi çalıştırın; konsolda `Yönetim paneli: http://localhost:5173/p/...` satırını görün.  
+Bu gizli linki yer imlerine ekleyin; `/admin` artık çalışmaz.
 
-**Admin anahtarı:** Geliştirmede `appsettings.Development.json` içinde tanımlıdır.  
-Canlı ortamda `Admin__ApiKey` ortam değişkeni veya User Secrets kullanın; anahtarı repoya yazmayın.
+**Yönetim anahtarı:** Geliştirmede `appsettings.Development.json` içinde tanımlıdır (en az 32 karakter).  
+Canlı ortamda `Admin__ApiKey`, `MediaSigning__SigningKey` ve Turnstile anahtarlarını ortam değişkeni ile verin.
 
 ## Güvenlik
 
-- Davetiye URL’si 32 karakterlik rastgele `uid` ile korunur (`/i/abc123…`)
-- RSVP ve fotoğraf yükleme yalnızca geçerli davet anahtarı (`X-Davet-Key`) ile çalışır
-- Admin işlemleri `X-Admin-Key` ile korunur
-- Form isteklerinde IP başına dakikada 20 istek sınırı (rate limit)
+- Davetiye URL'si 32 karakterlik rastgele `uid` ile korunur (`/i/abc123…`)
+- Yönetim paneli URL'si ayrı 32 karakterlik gizli `uid` ile korunur (`/p/xyz789…`)
+- RSVP ve fotoğraf yükleme: davet anahtarı + Cloudflare Turnstile CAPTCHA + telefon başına tek kayıt
+- Yönetim işlemleri: `X-Panel-Uid` + `X-Admin-Key` (üretimde en az 32 karakter)
+- Form isteklerinde IP başına dakikada 20 istek; panel API'de dakikada 60 istek
+- Misafir fotoğrafları magic byte doğrulaması, günlük kota ve yönetici onayından sonra yayınlanır
+- Yüklenen fotoğraflar imzalı URL ile sunulur (`/api/media/galeri/...`); doğrudan `/uploads` erişimi kapalı
+- Seeder yalnızca ilk kurulumda çalışır; restart'ta ayarları ezmez
 
 ## Medya dosyalarını değiştirme
 

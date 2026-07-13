@@ -1,6 +1,7 @@
 import { type ChangeEvent, type FormEvent, useRef, useState } from 'react'
 import { uploadGalleryPhotos } from '../api/client'
 import { useInviteKey } from '../context/InviteContext'
+import { TurnstileWidget } from './TurnstileWidget'
 
 const MAX_FILES = 10
 
@@ -10,6 +11,8 @@ export function GalleryUpload() {
   const [files, setFiles] = useState<File[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaResetKey, setCaptchaResetKey] = useState(0)
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? [])
@@ -37,29 +40,35 @@ export function GalleryUpload() {
       return
     }
 
+    if (!captchaToken) {
+      setStatus('error')
+      setMessage('Lütfen güvenlik doğrulamasını tamamlayın.')
+      return
+    }
+
     setStatus('loading')
     setMessage('')
     try {
-      const result = await uploadGalleryPhotos(inviteKey, files)
+      const result = await uploadGalleryPhotos(inviteKey, files, captchaToken)
       setStatus('success')
-      setMessage(
-        result.uploadedCount === 1
-          ? '1 fotoğraf başarıyla yüklendi. Teşekkürler!'
-          : `${result.uploadedCount} fotoğraf başarıyla yüklendi. Teşekkürler!`,
-      )
+      setMessage(result.message)
       setFiles([])
+      setCaptchaToken('')
+      setCaptchaResetKey((k) => k + 1)
       if (inputRef.current) inputRef.current.value = ''
     } catch (err) {
       setStatus('error')
       setMessage(err instanceof Error ? err.message : 'Yükleme başarısız oldu.')
+      setCaptchaToken('')
+      setCaptchaResetKey((k) => k + 1)
     }
   }
 
   return (
     <form className="ex-gallery__upload gallery__upload" onSubmit={handleSubmit}>
       <p className="gallery__upload-lead">
-        Törende çektiğiniz anıları bizimle paylaşın — fotoğraflar doğrudan galerimize
-        yüklenir. Tek seferde en fazla {MAX_FILES} fotoğraf yükleyebilirsiniz.
+        Törende çektiğiniz anıları bizimle paylaşın — fotoğraflar onay sonrası galeride
+        yayınlanır. Tek seferde en fazla {MAX_FILES} fotoğraf yükleyebilirsiniz.
       </p>
 
       <label className="gallery__upload-picker">
@@ -78,6 +87,12 @@ export function GalleryUpload() {
           {files.length} / {MAX_FILES} fotoğraf seçildi
         </p>
       )}
+
+      <TurnstileWidget
+        resetKey={captchaResetKey}
+        onToken={setCaptchaToken}
+        onExpire={() => setCaptchaToken('')}
+      />
 
       <button
         type="submit"

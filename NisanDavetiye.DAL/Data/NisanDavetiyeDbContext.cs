@@ -44,10 +44,10 @@ public class NisanDavetiyeDbContext : DbContext
         );
 
         modelBuilder.Entity<GaleriResmi>().HasData(
-            new GaleriResmi { Id = 1, Url = "/assets/images/galeri-1.jpg", AltMetin = "Anı 1", Sira = 1 },
-            new GaleriResmi { Id = 2, Url = "/assets/images/galeri-2.jpg", AltMetin = "Anı 2", Sira = 2 },
-            new GaleriResmi { Id = 3, Url = "/assets/images/galeri-3.jpg", AltMetin = "Anı 3", Sira = 3 },
-            new GaleriResmi { Id = 4, Url = "/assets/images/galeri-4.jpg", AltMetin = "Anı 4", Sira = 4 }
+            new GaleriResmi { Id = 1, Url = "/assets/images/galeri-1.jpg", AltMetin = "Anı 1", Sira = 1, Onaylandi = true },
+            new GaleriResmi { Id = 2, Url = "/assets/images/galeri-2.jpg", AltMetin = "Anı 2", Sira = 2, Onaylandi = true },
+            new GaleriResmi { Id = 3, Url = "/assets/images/galeri-3.jpg", AltMetin = "Anı 3", Sira = 3, Onaylandi = true },
+            new GaleriResmi { Id = 4, Url = "/assets/images/galeri-4.jpg", AltMetin = "Anı 4", Sira = 4, Onaylandi = true }
         );
     }
 }

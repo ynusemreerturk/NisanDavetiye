@@ -24,12 +24,4 @@ public class DavetiyeController : ControllerBase
             return NotFound(new { message = "Davetiye bulunamadı." });
         }
     }
-
-    [HttpGet]
-    public async Task<ActionResult<DavetiyeAdminDto>> GetForAdmin() =>
-        Ok(await _service.GetDavetiyeForAdminAsync());
-
-    [HttpPut]
-    public async Task<ActionResult<DavetiyeAdminDto>> Guncelle([FromBody] DavetiyeGuncelleDto dto) =>
-        Ok(await _service.GuncelleAsync(dto));
 }

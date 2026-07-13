@@ -10,6 +10,9 @@ public static class DavetiyeDataSeeder
         var ayar = await db.DavetiyeAyarlari.FirstOrDefaultAsync();
         if (ayar is null) return;
 
+        if (!string.IsNullOrWhiteSpace(ayar.GelinAdi))
+            return;
+
         ayar.GelinAdi = "Ceren";
         ayar.DamatAdi = "Emre";
         ayar.BasHarpler = "C & E";

@@ -7,6 +7,7 @@ public class SecurityMiddleware
 {
     public const string DavetKeyHeader = "X-Davet-Key";
     public const string AdminKeyHeader = "X-Admin-Key";
+    public const string PanelUidHeader = "X-Panel-Uid";
 
     private readonly RequestDelegate _next;
     private readonly IConfiguration _config;
@@ -17,13 +18,23 @@ public class SecurityMiddleware
         _config = config;
     }
 
-    public async Task InvokeAsync(HttpContext context, IInviteAuthService inviteAuth)
+    public async Task InvokeAsync(
+        HttpContext context,
+        IInviteAuthService inviteAuth,
+        IPanelAuthService panelAuth)
     {
         var path = context.Request.Path.Value ?? string.Empty;
         var method = context.Request.Method;
 
-        if (IsAdminRoute(path, method))
+        if (RequiresPanelAuth(path, method))
         {
+            var panelUid = context.Request.Headers[PanelUidHeader].FirstOrDefault();
+            if (!await panelAuth.IsValidPanelUidAsync(panelUid))
+            {
+                await WriteForbiddenAsync(context, "Geçersiz yönetim bağlantısı.");
+                return;
+            }
+
             if (!IsValidAdminKey(context))
             {
                 await WriteUnauthorizedAsync(context);
@@ -35,7 +46,7 @@ public class SecurityMiddleware
             var provided = context.Request.Headers[DavetKeyHeader].FirstOrDefault();
             if (!await inviteAuth.IsValidDavetKeyAsync(provided))
             {
-                await WriteForbiddenAsync(context);
+                await WriteForbiddenAsync(context, "Geçersiz davetiye bağlantısı.");
                 return;
             }
         }
@@ -47,15 +58,15 @@ public class SecurityMiddleware
         (path.Equals("/api/rsvp", StringComparison.OrdinalIgnoreCase) && method == "POST")
         || (path.Equals("/api/galeri/upload", StringComparison.OrdinalIgnoreCase) && method == "POST");
 
-    private static bool IsAdminRoute(string path, string method)
+    private static bool RequiresPanelAuth(string path, string method)
     {
-        if (path.StartsWith("/api/admin/galeri", StringComparison.OrdinalIgnoreCase))
-            return true;
+        if (!path.StartsWith("/api/panel/", StringComparison.OrdinalIgnoreCase))
+            return false;
 
-        if (path.Equals("/api/davetiye", StringComparison.OrdinalIgnoreCase))
-            return method is "GET" or "PUT";
+        if (path.StartsWith("/api/panel/access/", StringComparison.OrdinalIgnoreCase) && method == "GET")
+            return false;
 
-        return path.StartsWith("/api/rsvp", StringComparison.OrdinalIgnoreCase) && method is not "POST";
+        return true;
     }
 
     private bool IsValidAdminKey(HttpContext context)
@@ -71,10 +82,10 @@ public class SecurityMiddleware
         await context.Response.WriteAsJsonAsync(new { message = "Yetkisiz erişim." });
     }
 
-    private static async Task WriteForbiddenAsync(HttpContext context)
+    private static async Task WriteForbiddenAsync(HttpContext context, string message)
     {
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        await context.Response.WriteAsJsonAsync(new { message = "Geçersiz davetiye bağlantısı." });
+        await context.Response.WriteAsJsonAsync(new { message });
     }
 }
 
