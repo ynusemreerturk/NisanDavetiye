@@ -136,11 +136,18 @@ using (var scope = app.Services.CreateScope())
     await DavetiyeDataSeeder.SeedAsync(db);
 
     var panelUidForLog = await davetiyeRepo.GetPanelUidAsync();
+    var davetUidForLog = await davetiyeRepo.GetDavetUidAsync();
+
+    if (!string.IsNullOrEmpty(davetUidForLog))
+    {
+        app.Logger.LogInformation("Davetiye linki (path): /i/{DavetUid}", davetUidForLog);
+        app.Logger.LogInformation("Davetiye linki (geliştirme): http://localhost:5173/i/{DavetUid}", davetUidForLog);
+    }
+
     if (!string.IsNullOrEmpty(panelUidForLog))
     {
-        app.Logger.LogInformation(
-            "Yönetim paneli: http://localhost:5173/p/{PanelUid}",
-            panelUidForLog);
+        app.Logger.LogInformation("Yönetim paneli (path): /p/{PanelUid}", panelUidForLog);
+        app.Logger.LogInformation("Yönetim paneli (geliştirme): http://localhost:5173/p/{PanelUid}", panelUidForLog);
     }
 }
 
