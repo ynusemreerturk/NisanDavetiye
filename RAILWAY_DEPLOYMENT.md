@@ -60,7 +60,9 @@ MediaSigning__SigningKey=CHANGE_ME_EN_AZ_32_KARAKTER
 Formların (RSVP + fotoğraf yükleme) çalışması için ya gerçek Turnstile anahtarları gir,
 ya da CAPTCHA'yı kapat.
 
-Turnstile kullanılacaksa:
+CAPTCHA varsayılan olarak kapalıdır (`Turnstile__Enabled=false`).
+
+Turnstile kullanılacaksa (Cloudflare panelinde Railway domain'inizi ekleyin):
 
 ```text
 Turnstile__Enabled=true
@@ -68,14 +70,8 @@ Turnstile__SiteKey=YOUR_TURNSTILE_SITE_KEY
 Turnstile__SecretKey=YOUR_TURNSTILE_SECRET_KEY
 ```
 
-CAPTCHA istenmiyorsa:
-
-```text
-Turnstile__Enabled=false
-```
-
-> `Turnstile__Enabled=true` iken `Turnstile__SecretKey` boş bırakılırsa form gönderimleri
-> "CAPTCHA yapılandırması eksik" hatası verir. Ya gerçek anahtarları gir ya da `Enabled=false` yap.
+> Domain Cloudflare Turnstile'da kayıtlı değilse widget "Troubleshoot" gösterir ve boş
+> modal açılır. Bu durumda ya domain'i ekleyin ya da `Turnstile__Enabled=false` yapın.
 
 ### İsteğe bağlı (varsayılanları var)
 

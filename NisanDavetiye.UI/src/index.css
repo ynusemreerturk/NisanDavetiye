@@ -255,7 +255,7 @@ img {
   pointer-events: auto;
   background: transparent;
   border: none;
-  color: #fff;
+  color: #000;
   font-family: var(--font-body);
   font-size: clamp(0.55rem, 2.8vw, 0.65rem);
   letter-spacing: 0.22em;
@@ -271,6 +271,7 @@ img {
 }
 
 .ex-hero__cta-chevron {
+  color: #000;
   font-size: 1.25rem;
   animation: exBounce 1.8s ease-in-out infinite;
 }
@@ -899,6 +900,18 @@ img {
   justify-content: center;
   margin: 1.25rem auto 0;
   min-height: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.turnstile-widget__error {
+  margin: 1rem auto 0;
+  max-width: 22rem;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #8b3a3a;
 }
 
 .gallery__upload-success {
