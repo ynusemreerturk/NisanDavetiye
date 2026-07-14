@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using NisanDavetiye.BLL.Options;
-using NisanDavetiye.BLL.Services;
 
 namespace NisanDavetiye.API.Controllers;
 
@@ -9,15 +8,15 @@ namespace NisanDavetiye.API.Controllers;
 [Route("api/config")]
 public class ConfigController : ControllerBase
 {
-    private readonly TurnstileOptions _turnstile;
+    private readonly RecaptchaOptions _recaptcha;
 
-    public ConfigController(IOptions<TurnstileOptions> turnstile) => _turnstile = turnstile.Value;
+    public ConfigController(IOptions<RecaptchaOptions> recaptcha) => _recaptcha = recaptcha.Value;
 
     [HttpGet("client")]
     public IActionResult GetClientConfig() =>
         Ok(new
         {
-            turnstileSiteKey = _turnstile.Enabled ? _turnstile.SiteKey : string.Empty,
-            turnstileEnabled = _turnstile.Enabled && !string.IsNullOrWhiteSpace(_turnstile.SiteKey),
+            recaptchaSiteKey = _recaptcha.Enabled ? _recaptcha.SiteKey : string.Empty,
+            recaptchaEnabled = _recaptcha.Enabled && !string.IsNullOrWhiteSpace(_recaptcha.SiteKey),
         });
 }

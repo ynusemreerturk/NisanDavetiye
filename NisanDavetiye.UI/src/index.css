@@ -895,7 +895,7 @@ img {
   margin-top: 1rem;
 }
 
-.turnstile-widget {
+.recaptcha-widget {
   display: flex;
   justify-content: center;
   margin: 1.25rem auto 0;
@@ -904,7 +904,7 @@ img {
   overflow: hidden;
 }
 
-.turnstile-widget__error {
+.recaptcha-widget__error {
   margin: 1rem auto 0;
   max-width: 22rem;
   text-align: center;

@@ -2,7 +2,7 @@ import { type ChangeEvent, type FormEvent, useRef, useState } from 'react'
 import { uploadGalleryPhotos } from '../api/client'
 import { useInviteKey } from '../context/InviteContext'
 import { compressImagesForUpload } from '../utils/imageCompress'
-import { TurnstileWidget } from './TurnstileWidget'
+import { RecaptchaWidget } from './RecaptchaWidget'
 
 const MAX_FILES = 10
 
@@ -105,7 +105,7 @@ export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
         </p>
       )}
 
-      <TurnstileWidget
+      <RecaptchaWidget
         resetKey={captchaResetKey}
         onToken={setCaptchaToken}
         onExpire={() => setCaptchaToken('')}

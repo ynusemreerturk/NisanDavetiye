@@ -13,11 +13,11 @@ function panelHeaders(panelUid: string, adminKey: string): HeadersInit {
 }
 
 export async function fetchClientConfig(): Promise<{
-  turnstileSiteKey: string
-  turnstileEnabled: boolean
+  recaptchaSiteKey: string
+  recaptchaEnabled: boolean
 }> {
   const res = await fetch(`${API}/config/client`)
-  if (!res.ok) return { turnstileSiteKey: '', turnstileEnabled: false }
+  if (!res.ok) return { recaptchaSiteKey: '', recaptchaEnabled: false }
   return res.json()
 }
 

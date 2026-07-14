@@ -55,23 +55,27 @@ MediaSigning__SigningKey=CHANGE_ME_EN_AZ_32_KARAKTER
 > uygulama başlamaz). Güçlü rastgele değerler üret, örn:
 > `openssl rand -base64 48`
 
-### CAPTCHA (Cloudflare Turnstile)
+### CAPTCHA (Google reCAPTCHA v2)
 
-Formların (RSVP + fotoğraf yükleme) çalışması için ya gerçek Turnstile anahtarları gir,
+Formların (RSVP + fotoğraf yükleme) çalışması için ya gerçek reCAPTCHA anahtarları gir,
 ya da CAPTCHA'yı kapat.
 
-CAPTCHA varsayılan olarak kapalıdır (`Turnstile__Enabled=false`).
+CAPTCHA varsayılan olarak kapalıdır (`Recaptcha__Enabled=false`).
 
-Turnstile kullanılacaksa (Cloudflare panelinde Railway domain'inizi ekleyin):
+Google reCAPTCHA kullanılacaksa ([Admin Console](https://www.google.com/recaptcha/admin)):
+
+1. **reCAPTCHA v2** → "I'm not a robot" checkbox seç.
+2. Domain olarak Railway hostname'ini ekle: `cerenemre.up.railway.app` (ve lokal için `localhost`).
+3. Site Key + Secret Key'i Railway Variables'a yaz:
 
 ```text
-Turnstile__Enabled=true
-Turnstile__SiteKey=YOUR_TURNSTILE_SITE_KEY
-Turnstile__SecretKey=YOUR_TURNSTILE_SECRET_KEY
+Recaptcha__Enabled=true
+Recaptcha__SiteKey=YOUR_RECAPTCHA_SITE_KEY
+Recaptcha__SecretKey=YOUR_RECAPTCHA_SECRET_KEY
 ```
 
-> Domain Cloudflare Turnstile'da kayıtlı değilse widget "Troubleshoot" gösterir ve boş
-> modal açılır. Bu durumda ya domain'i ekleyin ya da `Turnstile__Enabled=false` yapın.
+> Eski `Turnstile__*` değişkenlerini kaldır. Domain Google konsolunda yoksa checkbox
+> yüklenmez veya "invalid domain" hatası verir.
 
 ### İsteğe bağlı (varsayılanları var)
 
@@ -112,5 +116,5 @@ MediaSigning__AdminUrlLifetimeHours=12
 Frontend, API'ye **relative `/api`** yolu ile istek atar; UI ve API aynı origin altında
 çalıştığı için ekstra domain/origin ayarı gerekmez.
 
-Turnstile kullanıyorsan Cloudflare Turnstile panelinde ilgili **site key** için Railway
+reCAPTCHA kullanıyorsan Google Admin Console'da ilgili **site key** için Railway
 domain'ini (`<sizin-domain>.up.railway.app`) izinli domain olarak eklemeyi unutma.

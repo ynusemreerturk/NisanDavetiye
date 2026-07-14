@@ -38,7 +38,7 @@ Ana sayfa (`/`) davetiyeyi göstermez; davetiye adresi: `/i/24temmuz2026`.
 Bu gizli linki yer imlerine ekleyin; `/admin` artık çalışmaz.
 
 **Yönetim anahtarı:** Geliştirmede `appsettings.Development.json` içinde tanımlıdır (en az 32 karakter).  
-Canlı ortamda `Admin__ApiKey`, `MediaSigning__SigningKey` ve Turnstile anahtarlarını ortam değişkeni ile verin.
+Canlı ortamda `Admin__ApiKey`, `MediaSigning__SigningKey` ve reCAPTCHA anahtarlarını ortam değişkeni ile verin.
 
 ## Railway Deployment
 
@@ -50,7 +50,7 @@ için [`RAILWAY_DEPLOYMENT.md`](./RAILWAY_DEPLOYMENT.md) dosyasına bakın.
 
 - Davetiye URL'si sabit slug ile açılır (`/i/24temmuz2026`)
 - Yönetim paneli URL'si ayrı 32 karakterlik gizli `uid` ile korunur (`/p/xyz789…`)
-- RSVP ve fotoğraf yükleme: davet anahtarı + Cloudflare Turnstile CAPTCHA + telefon başına tek kayıt
+- RSVP ve fotoğraf yükleme: davet anahtarı + Google reCAPTCHA v2 + telefon başına tek kayıt
 - Yönetim işlemleri: `X-Panel-Uid` + `X-Admin-Key` (üretimde en az 32 karakter)
 - Form isteklerinde IP başına dakikada 20 istek; panel API'de dakikada 60 istek
 - Misafir fotoğrafları magic byte doğrulaması, günlük kota ve yönetici onayından sonra yayınlanır

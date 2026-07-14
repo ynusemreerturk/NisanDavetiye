@@ -4,7 +4,7 @@ import { useInviteKey } from '../context/InviteContext'
 import { excellenceAssets } from '../excellence/assets'
 import { FadeIn } from './excellence/FadeIn'
 import { ExcellenceSectionHeader } from './excellence/SectionHeader'
-import { TurnstileWidget } from './TurnstileWidget'
+import { RecaptchaWidget } from './RecaptchaWidget'
 
 const PHONE_PATTERN = /^0\d{10}$/
 
@@ -160,7 +160,7 @@ export function RsvpSection() {
             </label>
 
             <div className="ex-rsvp__submit-wrap">
-              <TurnstileWidget
+              <RecaptchaWidget
                 resetKey={captchaResetKey}
                 onToken={setCaptchaToken}
                 onExpire={() => setCaptchaToken('')}
