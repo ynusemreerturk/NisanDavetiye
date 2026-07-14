@@ -30,6 +30,10 @@ function loadRecaptchaScript(): Promise<void> {
   recaptchaScriptPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-recaptcha]')
     if (existing) {
+      if (window.grecaptcha?.render) {
+        resolve()
+        return
+      }
       existing.addEventListener('load', () => resolve(), { once: true })
       existing.addEventListener('error', () => reject(new Error('reCAPTCHA yüklenemedi')), {
         once: true,
@@ -53,6 +57,7 @@ function loadRecaptchaScript(): Promise<void> {
 type RecaptchaWidgetProps = {
   onToken: (token: string) => void
   onExpire?: () => void
+  /** Form gönderimi sonrası artırın; widget yeniden create edilmez, sadece reset edilir. */
   resetKey?: number
 }
 
@@ -68,12 +73,13 @@ export function RecaptchaWidget({ onToken, onExpire, resetKey = 0 }: RecaptchaWi
   onTokenRef.current = onToken
   onExpireRef.current = onExpire
 
+  // Tek sefer mount — resetKey ile yeniden render etme (Google buna izin vermez).
   useEffect(() => {
     let cancelled = false
-    setFailed(false)
 
-    fetchClientConfig()
-      .then((config) => {
+    async function mount() {
+      try {
+        const config = await fetchClientConfig()
         if (cancelled) return
 
         if (!config.recaptchaEnabled || !config.recaptchaSiteKey) {
@@ -83,51 +89,16 @@ export function RecaptchaWidget({ onToken, onExpire, resetKey = 0 }: RecaptchaWi
         }
 
         setEnabled(true)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setEnabled(false)
-          onTokenRef.current('disabled')
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [resetKey])
-
-  useEffect(() => {
-    if (enabled !== true) return
-
-    let cancelled = false
-
-    async function mount() {
-      const config = await fetchClientConfig()
-      if (cancelled || !config.recaptchaSiteKey) return
-
-      try {
         await loadRecaptchaScript()
-      } catch {
-        if (!cancelled) {
-          setFailed(true)
-          onTokenRef.current('')
-        }
-        return
-      }
+        if (cancelled || !containerRef.current || !window.grecaptcha) return
 
-      if (cancelled || !containerRef.current || !window.grecaptcha) return
+        await new Promise<void>((resolve) => {
+          window.grecaptcha!.ready(() => resolve())
+        })
 
-      await new Promise<void>((resolve) => {
-        window.grecaptcha!.ready(() => resolve())
-      })
+        if (cancelled || !containerRef.current || !window.grecaptcha) return
+        if (widgetIdRef.current !== null) return
 
-      if (cancelled || !containerRef.current || !window.grecaptcha) return
-
-      // Önceki widget varsa container'ı temizle.
-      containerRef.current.innerHTML = ''
-      widgetIdRef.current = null
-
-      try {
         widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
           sitekey: config.recaptchaSiteKey,
           theme: 'light',
@@ -141,7 +112,8 @@ export function RecaptchaWidget({ onToken, onExpire, resetKey = 0 }: RecaptchaWi
             onExpireRef.current?.()
           },
           'error-callback': () => {
-            setFailed(true)
+            // Token kullanıldıktan sonra veya ağ kesintisinde tetiklenebilir;
+            // domain hatası sandığımız kalıcı UI göstermeyelim.
             onTokenRef.current('')
           },
         })
@@ -157,32 +129,34 @@ export function RecaptchaWidget({ onToken, onExpire, resetKey = 0 }: RecaptchaWi
 
     return () => {
       cancelled = true
-      widgetIdRef.current = null
-      if (containerRef.current) containerRef.current.innerHTML = ''
     }
-  }, [enabled, resetKey])
+  }, [])
 
-  // Form yeniden gönderildiğinde / reset sonrası checkbox'ı sıfırla.
+  // Başarılı/başarısız gönderim sonrası yalnızca checkbox'ı sıfırla.
   useEffect(() => {
-    if (enabled !== true || widgetIdRef.current === null || !window.grecaptcha) return
     if (resetKey === 0) return
+    if (widgetIdRef.current === null || !window.grecaptcha) return
+
+    onTokenRef.current('')
     try {
       window.grecaptcha.reset(widgetIdRef.current)
+      setFailed(false)
     } catch {
       // ignore
     }
-  }, [resetKey, enabled])
+  }, [resetKey])
 
-  if (enabled !== true) return null
+  if (enabled === false) return null
 
   if (failed) {
     return (
       <p className="recaptcha-widget__error" role="alert">
-        Güvenlik doğrulaması yüklenemedi. Domain&apos;in Google reCAPTCHA konsolunda tanımlı
-        olduğundan emin olun (`cerenemre.up.railway.app`).
+        Güvenlik doğrulaması yüklenemedi. Sayfayı yenileyip tekrar deneyin. Domain&apos;in Google
+        reCAPTCHA konsolunda tanımlı olduğundan emin olun.
       </p>
     )
   }
 
+  // enabled null iken de container hazır olsun; script gelince render edilir.
   return <div ref={containerRef} className="recaptcha-widget" />
 }
