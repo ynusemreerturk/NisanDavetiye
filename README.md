@@ -40,6 +40,12 @@ Bu gizli linki yer imlerine ekleyin; `/admin` artık çalışmaz.
 **Yönetim anahtarı:** Geliştirmede `appsettings.Development.json` içinde tanımlıdır (en az 32 karakter).  
 Canlı ortamda `Admin__ApiKey`, `MediaSigning__SigningKey` ve Turnstile anahtarlarını ortam değişkeni ile verin.
 
+## Railway Deployment
+
+Proje tek bir Railway servisi olarak (UI + API aynı container, SQLite ve yüklemeler `/data`
+volume'unda) Dockerfile ile deploy edilir. Ayrıntılı adımlar ve environment variable listesi
+için [`RAILWAY_DEPLOYMENT.md`](./RAILWAY_DEPLOYMENT.md) dosyasına bakın.
+
 ## Güvenlik
 
 - Davetiye URL'si 32 karakterlik rastgele `uid` ile korunur (`/i/abc123…`)

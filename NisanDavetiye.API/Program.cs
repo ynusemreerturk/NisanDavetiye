@@ -13,6 +13,12 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? "Data Source=nisandavetiye.db";
 
+// SQLite dosyasının bulunduğu klasörü (ör. Railway Volume /data) başlamadan önce oluştur.
+var sqliteDataSource = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
+var sqliteDirectory = Path.GetDirectoryName(sqliteDataSource);
+if (!string.IsNullOrWhiteSpace(sqliteDirectory))
+    Directory.CreateDirectory(sqliteDirectory);
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -139,10 +145,22 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseForwardedHeaders();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseCors("UiPolicy");
 app.UseRateLimiter();
 app.UseSecurity();
 app.MapControllers();
+
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    timestamp = DateTimeOffset.UtcNow
+}));
+
+// SPA fallback: /api/* istekleri asla index.html'e düşmez; diğer route'lar UI'a yönlenir.
+app.MapFallback("/api/{**rest}", () => Results.NotFound());
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
