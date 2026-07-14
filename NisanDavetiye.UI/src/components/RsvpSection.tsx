@@ -90,7 +90,7 @@ export function RsvpSection() {
 
         <FadeIn delay={0.1}>
           <form className="ex-rsvp__form" onSubmit={handleSubmit}>
-            <fieldset className="ex-rsvp__attend" required>
+            <fieldset className="ex-rsvp__attend">
               <legend>Katılacak mısınız? *</legend>
               <div className="ex-rsvp__attend-btns">
                 <button

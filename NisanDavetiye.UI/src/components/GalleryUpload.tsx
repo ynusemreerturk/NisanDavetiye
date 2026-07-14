@@ -5,7 +5,11 @@ import { TurnstileWidget } from './TurnstileWidget'
 
 const MAX_FILES = 10
 
-export function GalleryUpload() {
+type GalleryUploadProps = {
+  onUploaded?: () => void
+}
+
+export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
   const inviteKey = useInviteKey()
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
@@ -56,6 +60,7 @@ export function GalleryUpload() {
       setCaptchaToken('')
       setCaptchaResetKey((k) => k + 1)
       if (inputRef.current) inputRef.current.value = ''
+      onUploaded?.()
     } catch (err) {
       setStatus('error')
       setMessage(err instanceof Error ? err.message : 'Yükleme başarısız oldu.')

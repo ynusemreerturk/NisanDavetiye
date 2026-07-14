@@ -15,7 +15,7 @@ public interface IDavetiyeRepository
     Task ReplaceTimelineAsync(IEnumerable<TimelineOgesi> ogeler);
     Task<IReadOnlyList<GaleriResmi>> GetGaleriAsync();
     Task<GaleriResmi?> GetGaleriResmiByIdAsync(int id);
-    Task<int> CountGuestUploadsSinceAsync(DateTime sinceUtc);
+    Task<int> CountGuestUploadsSinceAsync(DateTime sinceUtc, string uploadUrlPrefix);
     Task SetGaleriOnayAsync(int id, bool onaylandi);
     Task<int> GetNextGaleriSiraAsync();
     Task AddGaleriResimleriAsync(IEnumerable<GaleriResmi> resimler);

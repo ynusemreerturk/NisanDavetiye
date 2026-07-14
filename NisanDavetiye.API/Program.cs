@@ -262,8 +262,16 @@ static async Task EnsureGaleriOnaySchemaAsync(NisanDavetiyeDbContext db)
         await using var alterTarih = connection.CreateCommand();
         alterTarih.CommandText = """
             ALTER TABLE GaleriResimleri
-            ADD COLUMN YuklemeTarihi TEXT NOT NULL DEFAULT (datetime('now'))
+            ADD COLUMN YuklemeTarihi TEXT NOT NULL DEFAULT '1970-01-01T00:00:00'
             """;
         await alterTarih.ExecuteNonQueryAsync();
+
+        await using var backfillTarih = connection.CreateCommand();
+        backfillTarih.CommandText = """
+            UPDATE GaleriResimleri
+            SET YuklemeTarihi = datetime('now')
+            WHERE YuklemeTarihi = '1970-01-01T00:00:00'
+            """;
+        await backfillTarih.ExecuteNonQueryAsync();
     }
 }

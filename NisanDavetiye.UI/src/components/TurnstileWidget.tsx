@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchClientConfig } from '../api/client'
 
 declare global {
@@ -55,6 +55,7 @@ export function TurnstileWidget({ onToken, onExpire, resetKey = 0 }: TurnstileWi
   const widgetIdRef = useRef<string | null>(null)
   const onTokenRef = useRef(onToken)
   const onExpireRef = useRef(onExpire)
+  const [enabled, setEnabled] = useState<boolean | null>(null)
 
   onTokenRef.current = onToken
   onExpireRef.current = onExpire
@@ -62,14 +63,35 @@ export function TurnstileWidget({ onToken, onExpire, resetKey = 0 }: TurnstileWi
   useEffect(() => {
     let cancelled = false
 
+    fetchClientConfig()
+      .then((config) => {
+        if (cancelled) return
+
+        if (!config.turnstileEnabled || !config.turnstileSiteKey) {
+          setEnabled(false)
+          onTokenRef.current('disabled')
+          return
+        }
+
+        setEnabled(true)
+      })
+      .catch(() => {
+        if (!cancelled) onTokenRef.current('')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [resetKey])
+
+  useEffect(() => {
+    if (enabled !== true) return
+
+    let cancelled = false
+
     async function mount() {
       const config = await fetchClientConfig()
-      if (cancelled) return
-
-      if (!config.turnstileEnabled || !config.turnstileSiteKey) {
-        onTokenRef.current('disabled')
-        return
-      }
+      if (cancelled || !config.turnstileSiteKey) return
 
       await loadTurnstileScript()
       if (cancelled || !containerRef.current || !window.turnstile) return
@@ -98,7 +120,9 @@ export function TurnstileWidget({ onToken, onExpire, resetKey = 0 }: TurnstileWi
         widgetIdRef.current = null
       }
     }
-  }, [resetKey])
+  }, [enabled, resetKey])
+
+  if (enabled !== true) return null
 
   return <div ref={containerRef} className="turnstile-widget" />
 }

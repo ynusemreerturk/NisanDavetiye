@@ -894,6 +894,13 @@ img {
   margin-top: 1rem;
 }
 
+.turnstile-widget {
+  display: flex;
+  justify-content: center;
+  margin: 1.25rem auto 0;
+  min-height: 0;
+}
+
 .gallery__upload-success {
   margin: 0.75rem 0 0;
   color: hsl(var(--foreground));
