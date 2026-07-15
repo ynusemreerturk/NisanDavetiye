@@ -96,14 +96,26 @@ export function HeroSection({
   return (
     <header className="ex-hero">
       {isVideo ? (
-        <video
-          ref={videoRef}
-          src={data.kapakGorselUrl}
-          muted
-          playsInline
-          preload="auto"
-          className="ex-hero__media"
-        />
+        <>
+          <video
+            src={data.kapakGorselUrl}
+            muted
+            loop
+            autoPlay
+            playsInline
+            preload="auto"
+            className="ex-hero__bg"
+            aria-hidden
+          />
+          <video
+            ref={videoRef}
+            src={data.kapakGorselUrl}
+            muted
+            playsInline
+            preload="auto"
+            className="ex-hero__media"
+          />
+        </>
       ) : (
         <div
           className="ex-hero__media ex-hero__media--image"

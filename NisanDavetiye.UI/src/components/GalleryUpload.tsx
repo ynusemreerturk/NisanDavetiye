@@ -2,12 +2,15 @@ import { type ChangeEvent, type FormEvent, useRef, useState } from 'react'
 import { uploadGalleryPhotos } from '../api/client'
 import { useInviteKey } from '../context/InviteContext'
 import { compressImagesForUpload } from '../utils/imageCompress'
+import { excellenceAssets } from '../excellence/assets'
 import { RecaptchaWidget } from './RecaptchaWidget'
 
 const MAX_FILES = 10
 
 const UPLOAD_LOCKED_MESSAGE =
   'Fotoğraf yükleme şu anda kapalı. Tören sırasında/sonrasında açılacaktır.'
+
+const UPLOAD_SUCCESS_MESSAGE = 'Fotoğraflarınız başarıyla yüklendi. Teşekkür ederiz!'
 
 type GalleryUploadProps = {
   onUploaded?: () => void
@@ -73,9 +76,9 @@ export function GalleryUpload({ onUploaded, uploadOpen = true }: GalleryUploadPr
     try {
       const prepared = await compressImagesForUpload(files)
       setStatus('loading')
-      const result = await uploadGalleryPhotos(inviteKey, prepared, captchaToken)
+      await uploadGalleryPhotos(inviteKey, prepared, captchaToken)
       setStatus('success')
-      setMessage(result.message)
+      setMessage(UPLOAD_SUCCESS_MESSAGE)
       setFiles([])
       setCaptchaToken('')
       setCaptchaResetKey((k) => k + 1)
@@ -107,8 +110,8 @@ export function GalleryUpload({ onUploaded, uploadOpen = true }: GalleryUploadPr
   return (
     <form className="ex-gallery__upload gallery__upload" onSubmit={handleSubmit}>
       <p className="gallery__upload-lead">
-        Törende çektiğiniz anıları bizimle paylaşın — fotoğraflar onay sonrası galeride
-        yayınlanır. Tek seferde en fazla {MAX_FILES} fotoğraf yükleyebilirsiniz.
+        Törende çektiğiniz anıları bizimle paylaşın. Tek seferde en fazla {MAX_FILES} fotoğraf
+        yükleyebilirsiniz.
       </p>
 
       <label className="gallery__upload-picker">
@@ -144,6 +147,26 @@ export function GalleryUpload({ onUploaded, uploadOpen = true }: GalleryUploadPr
 
       {status === 'success' && <p className="gallery__upload-success">{message}</p>}
       {status === 'error' && <p className="gallery__upload-error">{message}</p>}
+
+      {busy && (
+        <div className="upload-modal" role="alertdialog" aria-busy="true" aria-live="assertive">
+          <div className="upload-modal__card">
+            <img
+              src={excellenceAssets.monogram}
+              alt=""
+              className="upload-modal__monogram"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+            <div className="upload-modal__spinner" aria-hidden />
+            <p className="upload-modal__title">Fotoğraflarınız yükleniyor</p>
+            <p className="upload-modal__text">
+              Lütfen bekleyin, bu işlem birkaç saniye sürebilir. Sayfayı kapatmayın.
+            </p>
+          </div>
+        </div>
+      )}
     </form>
   )
 }
