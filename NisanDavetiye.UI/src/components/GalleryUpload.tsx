@@ -84,8 +84,7 @@ export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
   return (
     <form className="ex-gallery__upload gallery__upload" onSubmit={handleSubmit}>
       <p className="gallery__upload-lead">
-        Törende çektiğiniz anıları bizimle paylaşın — fotoğraflar onay sonrası galeride
-        yayınlanır. Tek seferde en fazla {MAX_FILES} fotoğraf yükleyebilirsiniz.
+        Törende çektiğiniz anıları bizimle paylaşın. Tek seferde en fazla {MAX_FILES} fotoğraf yükleyebilirsiniz.
       </p>
 
       <label className="gallery__upload-picker">
