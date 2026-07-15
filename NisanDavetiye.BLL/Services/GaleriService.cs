@@ -29,17 +29,20 @@ public class GaleriService : IGaleriService
     private readonly GaleriStorageOptions _storage;
     private readonly IMediaUrlSigner _mediaSigner;
     private readonly IDriveStorageService _drive;
+    private readonly IDriveOffloadQueue _driveQueue;
 
     public GaleriService(
         IDavetiyeRepository repo,
         IOptions<GaleriStorageOptions> storageOptions,
         IMediaUrlSigner mediaSigner,
-        IDriveStorageService drive)
+        IDriveStorageService drive,
+        IDriveOffloadQueue driveQueue)
     {
         _repo = repo;
         _storage = storageOptions.Value;
         _mediaSigner = mediaSigner;
         _drive = drive;
+        _driveQueue = driveQueue;
     }
 
     public async Task<GaleriUploadResultDto> UploadAsync(
@@ -120,7 +123,7 @@ public class GaleriService : IGaleriService
                 Url = url,
                 AltMetin = displayName,
                 Sira = nextSira++,
-                Onaylandi = false,
+                Onaylandi = true,
                 YuklemeTarihi = now,
             });
 
@@ -129,10 +132,18 @@ public class GaleriService : IGaleriService
 
         await _repo.AddGaleriResimleriAsync(newItems);
 
+        // Bu yükleme grubunu (ör. 7 foto) hemen Drive aktarım kuyruğuna al — 300MB beklenmez.
+        if (_drive.IsConfigured)
+        {
+            var ids = newItems.Where(i => i.Id > 0).Select(i => i.Id).ToList();
+            if (ids.Count > 0)
+                await _driveQueue.EnqueueBatchAsync(ids, cancellationToken);
+        }
+
         return new GaleriUploadResultDto(
             uploadedNames.Count,
             uploadedNames,
-            "Fotoğraflar yüklendi. Yönetici onayından sonra yayınlanacaktır.");
+            "Fotoğraflar yüklendi.");
     }
 
     public async Task<GaleriDto> ApproveUploadedPhotoAsync(int id)

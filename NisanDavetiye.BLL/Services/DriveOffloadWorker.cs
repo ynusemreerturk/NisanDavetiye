@@ -51,11 +51,11 @@ public class DriveOffloadWorker : BackgroundService
 
         try
         {
-            await foreach (var id in _queue.DequeueAllAsync(stoppingToken))
+            await foreach (var batch in _queue.DequeueAllAsync(stoppingToken))
             {
                 try
                 {
-                    await ProcessAsync(id, stoppingToken);
+                    await ProcessBatchAsync(batch, stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -63,7 +63,7 @@ public class DriveOffloadWorker : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Galeri #{Id} Drive'a aktarılamadı.", id);
+                    _logger.LogError(ex, "Drive aktarım grubu işlenemedi ({Count} foto).", batch.Count);
                 }
             }
         }
@@ -115,39 +115,69 @@ public class DriveOffloadWorker : BackgroundService
         }
     }
 
-    private async Task ProcessAsync(int id, CancellationToken stoppingToken)
+    private async Task ProcessBatchAsync(IReadOnlyList<int> ids, CancellationToken stoppingToken)
     {
+        // Grup tek bir scope + tek DB kaydı ile işlenir; foto başına Drive upload zorunludur.
         using var scope = _scopeFactory.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IDavetiyeRepository>();
 
-        var item = await repo.GetGaleriResmiByIdAsync(id);
-        if (item is null || !string.IsNullOrEmpty(item.DriveFileId))
-            return;
+        var updates = new List<(int Id, string DriveFileId)>();
+        var localPathsToDelete = new List<string>();
 
-        var fileName = _signer.TryGetFileName(item.Url);
-        if (fileName is null)
-            return;
-
-        var diskPath = Path.Combine(_storage.AbsoluteUploadDirectory, fileName);
-        if (!File.Exists(diskPath))
-            return;
-
-        var contentType = ContentTypeFromExtension(Path.GetExtension(fileName));
-        var displayName = string.IsNullOrWhiteSpace(item.AltMetin) ? fileName : item.AltMetin;
-
-        var fileId = await _drive.UploadAsync(diskPath, displayName, contentType, stoppingToken);
-        await repo.SetGaleriDriveFileIdAsync(id, fileId);
-
-        try
+        foreach (var id in ids)
         {
-            File.Delete(diskPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Drive'a aktarılan yerel dosya silinemedi: {File}", diskPath);
+            stoppingToken.ThrowIfCancellationRequested();
+
+            var item = await repo.GetGaleriResmiByIdAsync(id);
+            if (item is null || !string.IsNullOrEmpty(item.DriveFileId))
+                continue;
+
+            var fileName = _signer.TryGetFileName(item.Url);
+            if (fileName is null)
+                continue;
+
+            var diskPath = Path.Combine(_storage.AbsoluteUploadDirectory, fileName);
+            if (!File.Exists(diskPath))
+                continue;
+
+            var contentType = ContentTypeFromExtension(Path.GetExtension(fileName));
+            var displayName = string.IsNullOrWhiteSpace(item.AltMetin) ? fileName : item.AltMetin;
+
+            try
+            {
+                var fileId = await _drive.UploadAsync(diskPath, displayName, contentType, stoppingToken);
+                updates.Add((id, fileId));
+                localPathsToDelete.Add(diskPath);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Galeri #{Id} Drive'a aktarılamadı.", id);
+            }
         }
 
-        _logger.LogInformation("Galeri #{Id} Drive'a aktarıldı (fileId: {FileId}).", id, fileId);
+        if (updates.Count == 0)
+            return;
+
+        await repo.SetGaleriDriveFileIdsAsync(updates);
+
+        // DB güncellendikten sonra yerel dosyaları sil (disk boşalsın).
+        foreach (var path in localPathsToDelete)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Drive'a aktarılan yerel dosya silinemedi: {File}", path);
+            }
+        }
+
+        _logger.LogInformation("{Count} fotoğraf Drive'a aktarıldı (grup).", updates.Count);
     }
 
     private static string ContentTypeFromExtension(string ext) =>

@@ -1,7 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  approveGalleryPhoto,
   deleteAllUploadedGalleryPhotos,
   deleteGalleryPhoto,
   deleteRsvp,
@@ -10,7 +9,6 @@ import {
   fetchDavetiyeAdmin,
   fetchDriveStatus,
   fetchRsvpList,
-  rejectGalleryPhoto,
   triggerDriveOffload,
   updateDavetiye,
   verifyPanelAccess,
@@ -126,8 +124,7 @@ export function AdminPage() {
     }
   }
 
-  const pendingPhotos = davetiye?.galeri.filter((g) => g.misafirYuklemesi && !g.onaylandi) ?? []
-  const uploadedPhotos = davetiye?.galeri.filter((g) => g.misafirYuklemesi && g.onaylandi) ?? []
+  const uploadedPhotos = davetiye?.galeri.filter((g) => g.misafirYuklemesi) ?? []
 
   const showError = (text: string) => {
     setMessage('')
@@ -204,27 +201,6 @@ export function AdminPage() {
       showSuccess('Fotoğraf sunucudan silindi.')
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Fotoğraf silinemedi.')
-    }
-  }
-
-  const handleApprovePhoto = async (id: number) => {
-    try {
-      await approveGalleryPhoto(id, panelUid, adminKey)
-      await loadData(adminKey)
-      showSuccess('Fotoğraf onaylandı ve davetiyede yayınlanacak.')
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Fotoğraf onaylanamadı.')
-    }
-  }
-
-  const handleRejectPhoto = async (id: number) => {
-    if (!confirm('Bu fotoğraf reddedilsin ve sunucudan silinsin mi?')) return
-    try {
-      await rejectGalleryPhoto(id, panelUid, adminKey)
-      await loadData(adminKey)
-      showSuccess('Fotoğraf reddedildi ve silindi.')
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Fotoğraf reddedilemedi.')
     }
   }
 
@@ -431,46 +407,7 @@ export function AdminPage() {
 
       <section className="admin__gallery">
         <div className="admin__gallery-header">
-          <h2>Onay Bekleyen Fotoğraflar ({pendingPhotos.length})</h2>
-        </div>
-        <p className="admin__hint">
-          Misafir yüklemeleri yönetici onayından sonra davetiyede görünür.
-        </p>
-        {pendingPhotos.length === 0 ? (
-          <p className="admin__hint">Onay bekleyen fotoğraf yok.</p>
-        ) : (
-          <div className="admin__gallery-grid">
-            {pendingPhotos.map((photo) => (
-              <div key={photo.id} className="admin__gallery-card">
-                <a
-                  href={photo.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="admin__gallery-item"
-                  title={photo.altMetin || 'Fotoğraf'}
-                >
-                  <img src={photo.url} alt={photo.altMetin || 'Onay bekleyen fotoğraf'} loading="lazy" />
-                </a>
-                {photo.driveAktarildi && (
-                  <span className="admin__gallery-badge">Drive'a taşındı</span>
-                )}
-                <div className="admin__gallery-actions">
-                  <button type="button" className="btn-outline" onClick={() => handleApprovePhoto(photo.id)}>
-                    Onayla
-                  </button>
-                  <button type="button" className="btn-outline admin__danger" onClick={() => handleRejectPhoto(photo.id)}>
-                    Reddet
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="admin__gallery">
-        <div className="admin__gallery-header">
-          <h2>Onaylanan Fotoğraflar ({uploadedPhotos.length})</h2>
+          <h2>Misafir Fotoğrafları ({uploadedPhotos.length})</h2>
           {uploadedPhotos.length > 0 && (
             <div className="admin__gallery-actions">
               <button type="button" className="btn-outline" onClick={handleDownloadGalleryZip}>

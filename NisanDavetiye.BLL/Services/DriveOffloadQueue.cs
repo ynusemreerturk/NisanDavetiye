@@ -2,21 +2,26 @@ using System.Threading.Channels;
 
 namespace NisanDavetiye.BLL.Services;
 
-/// <summary>Drive'a aktarılacak galeri kayıtlarının kimliklerini tutan basit kuyruk.</summary>
+/// <summary>Drive'a aktarılacak galeri kayıtlarını grup (batch) halinde tutan kuyruk.</summary>
 public interface IDriveOffloadQueue
 {
-    ValueTask EnqueueAsync(int galeriResmiId, CancellationToken cancellationToken = default);
-    IAsyncEnumerable<int> DequeueAllAsync(CancellationToken cancellationToken);
+    ValueTask EnqueueBatchAsync(IReadOnlyList<int> galeriResmiIds, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IReadOnlyList<int>> DequeueAllAsync(CancellationToken cancellationToken);
 }
 
 public class DriveOffloadQueue : IDriveOffloadQueue
 {
-    private readonly Channel<int> _channel =
-        Channel.CreateUnbounded<int>(new UnboundedChannelOptions { SingleReader = true });
+    private readonly Channel<IReadOnlyList<int>> _channel =
+        Channel.CreateUnbounded<IReadOnlyList<int>>(new UnboundedChannelOptions { SingleReader = true });
 
-    public ValueTask EnqueueAsync(int galeriResmiId, CancellationToken cancellationToken = default) =>
-        _channel.Writer.WriteAsync(galeriResmiId, cancellationToken);
+    public ValueTask EnqueueBatchAsync(IReadOnlyList<int> galeriResmiIds, CancellationToken cancellationToken = default)
+    {
+        if (galeriResmiIds.Count == 0)
+            return ValueTask.CompletedTask;
 
-    public IAsyncEnumerable<int> DequeueAllAsync(CancellationToken cancellationToken) =>
+        return _channel.Writer.WriteAsync(galeriResmiIds, cancellationToken);
+    }
+
+    public IAsyncEnumerable<IReadOnlyList<int>> DequeueAllAsync(CancellationToken cancellationToken) =>
         _channel.Reader.ReadAllAsync(cancellationToken);
 }

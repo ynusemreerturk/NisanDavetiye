@@ -99,6 +99,23 @@ public class DavetiyeRepository : IDavetiyeRepository
         await _db.SaveChangesAsync();
     }
 
+    public async Task SetGaleriDriveFileIdsAsync(IReadOnlyList<(int Id, string DriveFileId)> updates)
+    {
+        if (updates.Count == 0) return;
+
+        var ids = updates.Select(u => u.Id).ToList();
+        var items = await _db.GaleriResimleri.Where(g => ids.Contains(g.Id)).ToListAsync();
+        var map = updates.ToDictionary(u => u.Id, u => u.DriveFileId);
+
+        foreach (var item in items)
+        {
+            if (map.TryGetValue(item.Id, out var driveFileId))
+                item.DriveFileId = driveFileId;
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<IReadOnlyList<GaleriResmi>> GetGuestUploadsPendingDriveAsync(string uploadUrlPrefix)
     {
         var prefix = uploadUrlPrefix.TrimEnd('/') + "/";

@@ -87,15 +87,12 @@ public class DriveOffloadService : IDriveOffloadService
     {
         var prefix = _storage.PublicUrlPrefix.TrimEnd('/');
         var pending = await _repo.GetGuestUploadsPendingDriveAsync(prefix);
+        if (pending.Count == 0)
+            return 0;
 
-        var queued = 0;
-        foreach (var item in pending)
-        {
-            await _queue.EnqueueAsync(item.Id, cancellationToken);
-            queued++;
-        }
-
-        return queued;
+        var ids = pending.Select(p => p.Id).ToList();
+        await _queue.EnqueueBatchAsync(ids, cancellationToken);
+        return ids.Count;
     }
 
     private long ComputeLocalUsedBytes()
