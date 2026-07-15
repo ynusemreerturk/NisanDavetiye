@@ -13,6 +13,13 @@ public class GaleriService : IGaleriService
     private const int MaxFilesPerRequest = 10;
     private const long MaxFileBytes = 15 * 1024 * 1024;
 
+    /// <summary>Türkiye saati (UTC+3) 24.07.2026 12:30 — bu andan önce misafir yüklemesi kapalı.</summary>
+    private static readonly DateTimeOffset UploadOpensAt =
+        new(2026, 7, 24, 12, 30, 0, TimeSpan.FromHours(3));
+
+    private const string UploadNotOpenMessage =
+        "Fotoğraf yükleme, Türkiye saati ile 24.07.2026 saat 12:30 sonrasında açılabilecektir.";
+
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "image/jpeg",
@@ -40,6 +47,9 @@ public class GaleriService : IGaleriService
         IReadOnlyList<GaleriUploadFile> files,
         CancellationToken cancellationToken = default)
     {
+        if (DateTimeOffset.UtcNow < UploadOpensAt)
+            throw new ArgumentException(UploadNotOpenMessage);
+
         if (files.Count == 0)
             throw new ArgumentException("En az bir fotoğraf seçin.");
 

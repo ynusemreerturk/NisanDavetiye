@@ -27,6 +27,26 @@ export function HeroSection({
 
   const isVideo = data.kapakGorselUrl.toLowerCase().endsWith('.mp4')
 
+  // Intro oynarken hero videosunu önceden buffer'la; ilk kareyi boya.
+  useEffect(() => {
+    if (!isVideo || playVideo) return
+    const video = videoRef.current
+    if (!video) return
+
+    const paintFirstFrame = () => {
+      try {
+        if (video.currentTime < 0.01) video.currentTime = 0.001
+      } catch {
+        // ignore
+      }
+    }
+
+    if (video.readyState >= 2) paintFirstFrame()
+    else video.addEventListener('loadeddata', paintFirstFrame, { once: true })
+
+    return () => video.removeEventListener('loadeddata', paintFirstFrame)
+  }, [isVideo, playVideo, data.kapakGorselUrl])
+
   useEffect(() => {
     if (!playVideo) return
 

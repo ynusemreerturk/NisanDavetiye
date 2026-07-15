@@ -166,7 +166,8 @@ img {
   min-height: 100dvh;
   overflow: hidden;
   z-index: 0;
-  background: #fff;
+  /* Intro → hero geçişinde beyaz flaş olmasın */
+  background: #000;
 }
 
 .ex-hero__media {

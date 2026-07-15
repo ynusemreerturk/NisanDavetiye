@@ -22,6 +22,7 @@ export function InvitationPage() {
   const [data, setData] = useState<Davetiye | null>(null)
   const [error, setError] = useState('')
   const [introDone, setIntroDone] = useState(false)
+  const [showIntro, setShowIntro] = useState(true)
   const [heroUnlocked, setHeroUnlocked] = useState(false)
   const musicRef = useRef<MusicPlayerHandle>(null)
 
@@ -48,9 +49,12 @@ export function InvitationPage() {
 
   const handleIntroComplete = useCallback(() => {
     setIntroDone(true)
-    // Intro bittikten sonra da yeniden dene (ilk jest kaçırıldıysa).
     startMusic()
   }, [startMusic])
+
+  const handleIntroDismissed = useCallback(() => {
+    setShowIntro(false)
+  }, [])
 
   const handleHeroUnlock = useCallback(() => {
     setHeroUnlocked(true)
@@ -78,52 +82,54 @@ export function InvitationPage() {
     year: 'numeric',
   })
 
+  const heroData = {
+    ...data,
+    kapakGorselUrl: data.kapakGorselUrl || '/assets/video/hero.mp4',
+  }
+
   return (
     <InviteProvider inviteKey={inviteKey}>
       <div className="invitation">
-        {/* Audio her zaman mount — görünürlük düğmesi hero açılınca. */}
         <MusicPlayer
           ref={musicRef}
           url={data.muzikUrl || '/assets/audio/ballerina.mp3'}
           showButton={heroUnlocked}
         />
 
-        {!introDone && (
+        {/* Hero intro altında mount — video önceden yüklenir, geçişte beyaz flaş olmaz. */}
+        <HeroSection
+          data={heroData}
+          showContent={false}
+          playVideo={introDone}
+          scrollLocked={!heroUnlocked}
+          onUnlockScroll={handleHeroUnlock}
+        />
+
+        {showIntro && (
           <IntroOverlay
             videoUrl={data.acilisVideoUrl || '/assets/video/intro.mp4'}
             onComplete={handleIntroComplete}
+            onDismissed={handleIntroDismissed}
             onUserGesture={startMusic}
           />
         )}
 
         {introDone && (
-          <>
-            <HeroSection
-              data={{
-                ...data,
-                kapakGorselUrl: data.kapakGorselUrl || '/assets/video/hero.mp4',
-              }}
-              showContent={false}
-              playVideo={introDone}
-              scrollLocked={!heroUnlocked}
-              onUnlockScroll={handleHeroUnlock}
+          <main className="invitation__main">
+            <CountdownSection
+              targetDate={data.etkinlikTarihi}
+              description={data.hosgeldinMetni}
             />
-            <main className="invitation__main">
-              <CountdownSection
-                targetDate={data.etkinlikTarihi}
-                description={data.hosgeldinMetni}
-              />
-              <SectionDivider />
-              <CelebrationsSection data={data} />
-              <SectionDivider />
-              <TimelineSection items={data.timeline} />
-              <SectionDivider />
-              <GallerySection />
-              <SectionDivider />
-              <RsvpSection />
-              <ExcellenceFooter names={names} dateStr={dateStr} />
-            </main>
-          </>
+            <SectionDivider />
+            <CelebrationsSection data={data} />
+            <SectionDivider />
+            <TimelineSection items={data.timeline} />
+            <SectionDivider />
+            <GallerySection />
+            <SectionDivider />
+            <RsvpSection />
+            <ExcellenceFooter names={names} dateStr={dateStr} />
+          </main>
         )}
       </div>
     </InviteProvider>
