@@ -39,7 +39,7 @@ public class GoogleDriveStorageService : IDriveStorageService, IDisposable
         if (!string.IsNullOrWhiteSpace(_options.FolderId))
             metadata.Parents = new[] { _options.FolderId };
 
-        await using var stream = File.OpenRead(localPath);
+        await using var stream = System.IO.File.OpenRead(localPath);
         var request = service.Files.Create(metadata, stream, contentType);
         request.Fields = "id";
 
