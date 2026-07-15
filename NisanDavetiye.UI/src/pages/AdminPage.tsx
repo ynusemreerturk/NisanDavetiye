@@ -78,6 +78,16 @@ export function AdminPage() {
     }
   }, [accessValid])
 
+  // Bilgi/başarı mesajları birkaç saniye sonra otomatik kaybolsun.
+  useEffect(() => {
+    if (!message && !error) return
+    const t = setTimeout(() => {
+      setMessage('')
+      setError('')
+    }, 4000)
+    return () => clearTimeout(t)
+  }, [message, error])
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
@@ -441,6 +451,9 @@ export function AdminPage() {
                 >
                   <img src={photo.url} alt={photo.altMetin || 'Onay bekleyen fotoğraf'} loading="lazy" />
                 </a>
+                {photo.driveAktarildi && (
+                  <span className="admin__gallery-badge">Drive'a taşındı</span>
+                )}
                 <div className="admin__gallery-actions">
                   <button type="button" className="btn-outline" onClick={() => handleApprovePhoto(photo.id)}>
                     Onayla
@@ -524,6 +537,9 @@ export function AdminPage() {
                 >
                   <img src={photo.url} alt={photo.altMetin || 'Galeri fotoğrafı'} loading="lazy" />
                 </a>
+                {photo.driveAktarildi && (
+                  <span className="admin__gallery-badge">Drive'a taşındı</span>
+                )}
                 <button
                   type="button"
                   className="admin__gallery-delete"

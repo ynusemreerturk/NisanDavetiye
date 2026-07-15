@@ -133,6 +133,6 @@ public class DavetiyeService : IDavetiyeService
             ? _mediaSigner.SignGuestFile(_mediaSigner.TryGetFileName(item.Url)!, forAdmin)
             : item.Url;
 
-        return new GaleriDto(item.Id, url, item.AltMetin, item.Sira, item.Onaylandi, misafir);
+        return new GaleriDto(item.Id, url, item.AltMetin, item.Sira, item.Onaylandi, misafir, !string.IsNullOrEmpty(item.DriveFileId));
     }
 }

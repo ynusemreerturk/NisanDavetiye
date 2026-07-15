@@ -13,6 +13,7 @@ export interface GaleriItem {
   sira: number
   onaylandi: boolean
   misafirYuklemesi: boolean
+  driveAktarildi: boolean
 }
 
 export interface Davetiye {

@@ -2,7 +2,7 @@ namespace NisanDavetiye.BLL.DTOs;
 
 public record TimelineDto(int Id, string Baslik, string Aciklama, string Saat, int Sira);
 
-public record GaleriDto(int Id, string Url, string AltMetin, int Sira, bool Onaylandi, bool MisafirYuklemesi);
+public record GaleriDto(int Id, string Url, string AltMetin, int Sira, bool Onaylandi, bool MisafirYuklemesi, bool DriveAktarildi);
 
 public record DavetiyeDto(
     string GelinAdi,

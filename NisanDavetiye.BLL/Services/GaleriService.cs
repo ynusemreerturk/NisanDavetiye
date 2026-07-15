@@ -156,8 +156,8 @@ public class GaleriService : IGaleriService
         if (!_mediaSigner.IsGuestUploadUrl(item.Url))
             throw new InvalidOperationException("Bu kayıt misafir yüklemesi değil.");
 
+        // Not: Drive'daki kopya korunur (Drive yalnızca taşıma/arşiv amaçlıdır).
         DeleteDiskFile(item.Url);
-        await DeleteDriveFileIfAnyAsync(item);
         await _repo.DeleteGaleriResmiAsync(id);
         return new GaleriSilResultDto(1);
     }
@@ -203,8 +203,8 @@ public class GaleriService : IGaleriService
         if (!_mediaSigner.IsGuestUploadUrl(item.Url))
             throw new InvalidOperationException("Bu kayıt misafir yüklemesi değil.");
 
+        // Not: Drive'daki kopya korunur (Drive yalnızca taşıma/arşiv amaçlıdır).
         DeleteDiskFile(item.Url);
-        await DeleteDriveFileIfAnyAsync(item);
         await _repo.DeleteGaleriResmiAsync(id);
         return new GaleriSilResultDto(1);
     }
@@ -216,8 +216,8 @@ public class GaleriService : IGaleriService
 
         foreach (var item in items)
         {
+            // Not: Drive'daki kopya korunur (Drive yalnızca taşıma/arşiv amaçlıdır).
             var removedLocal = DeleteDiskFile(item.Url);
-            await DeleteDriveFileIfAnyAsync(item);
             if (removedLocal || !string.IsNullOrEmpty(item.DriveFileId))
                 deleted++;
 
@@ -225,21 +225,6 @@ public class GaleriService : IGaleriService
         }
 
         return new GaleriSilResultDto(deleted);
-    }
-
-    private async Task DeleteDriveFileIfAnyAsync(GaleriResmi item)
-    {
-        if (string.IsNullOrEmpty(item.DriveFileId))
-            return;
-
-        try
-        {
-            await _drive.DeleteAsync(item.DriveFileId);
-        }
-        catch
-        {
-            // Drive'dan silinemezse DB kaydını yine de kaldırırız; kalıntı dosya manuel temizlenebilir.
-        }
     }
 
     private GaleriDto MapDto(GaleriResmi item, bool forAdmin)
@@ -254,7 +239,7 @@ public class GaleriService : IGaleriService
         else
             url = _mediaSigner.SignGuestFile(_mediaSigner.TryGetFileName(item.Url)!, forAdmin);
 
-        return new GaleriDto(item.Id, url, item.AltMetin, item.Sira, item.Onaylandi, misafir);
+        return new GaleriDto(item.Id, url, item.AltMetin, item.Sira, item.Onaylandi, misafir, !string.IsNullOrEmpty(item.DriveFileId));
     }
 
     private async Task<IReadOnlyList<GaleriResmi>> GetUploadedItemsAsync()
