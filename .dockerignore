@@ -1,0 +1,14 @@
+.git
+.github
+.vs
+.idea
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/build
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal

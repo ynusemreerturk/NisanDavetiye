@@ -24,11 +24,15 @@ public class DavetiyeRepository : IDavetiyeRepository
 
     public async Task EnsureDavetUidAsync()
     {
+        const string fixedSlug = "24temmuz2026";
         var ayar = await _db.DavetiyeAyarlari.FirstOrDefaultAsync();
-        if (ayar is null || !string.IsNullOrEmpty(ayar.DavetUid))
+        if (ayar is null) return;
+
+        // Sabit davetiye yolu; rastgele GUID üretilmez / mevcut rastgele değerler değiştirilir.
+        if (string.Equals(ayar.DavetUid, fixedSlug, StringComparison.Ordinal))
             return;
 
-        ayar.DavetUid = Guid.NewGuid().ToString("N");
+        ayar.DavetUid = fixedSlug;
         await _db.SaveChangesAsync();
     }
 

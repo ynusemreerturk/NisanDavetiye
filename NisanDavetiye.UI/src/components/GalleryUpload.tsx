@@ -1,7 +1,8 @@
 import { type ChangeEvent, type FormEvent, useRef, useState } from 'react'
 import { uploadGalleryPhotos } from '../api/client'
 import { useInviteKey } from '../context/InviteContext'
-import { TurnstileWidget } from './TurnstileWidget'
+import { compressImagesForUpload } from '../utils/imageCompress'
+import { RecaptchaWidget } from './RecaptchaWidget'
 
 const MAX_FILES = 10
 
@@ -13,10 +14,12 @@ export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
   const inviteKey = useInviteKey()
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'preparing' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
   const [captchaResetKey, setCaptchaResetKey] = useState(0)
+
+  const busy = status === 'preparing' || status === 'loading'
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? [])
@@ -50,10 +53,12 @@ export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
       return
     }
 
-    setStatus('loading')
+    setStatus('preparing')
     setMessage('')
     try {
-      const result = await uploadGalleryPhotos(inviteKey, files, captchaToken)
+      const prepared = await compressImagesForUpload(files)
+      setStatus('loading')
+      const result = await uploadGalleryPhotos(inviteKey, prepared, captchaToken)
       setStatus('success')
       setMessage(result.message)
       setFiles([])
@@ -69,11 +74,17 @@ export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
     }
   }
 
+  const submitLabel =
+    status === 'preparing'
+      ? 'Hazırlanıyor…'
+      : status === 'loading'
+        ? 'Yükleniyor…'
+        : 'Fotoğrafları Yükle'
+
   return (
     <form className="ex-gallery__upload gallery__upload" onSubmit={handleSubmit}>
       <p className="gallery__upload-lead">
-        Törende çektiğiniz anıları bizimle paylaşın — fotoğraflar onay sonrası galeride
-        yayınlanır. Tek seferde en fazla {MAX_FILES} fotoğraf yükleyebilirsiniz.
+        Törende çektiğiniz anıları bizimle paylaşın. Tek seferde en fazla {MAX_FILES} fotoğraf yükleyebilirsiniz.
       </p>
 
       <label className="gallery__upload-picker">
@@ -93,7 +104,7 @@ export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
         </p>
       )}
 
-      <TurnstileWidget
+      <RecaptchaWidget
         resetKey={captchaResetKey}
         onToken={setCaptchaToken}
         onExpire={() => setCaptchaToken('')}
@@ -102,9 +113,9 @@ export function GalleryUpload({ onUploaded }: GalleryUploadProps) {
       <button
         type="submit"
         className="ex-btn ex-btn--primary gallery__upload-submit"
-        disabled={files.length === 0 || status === 'loading'}
+        disabled={files.length === 0 || busy}
       >
-        {status === 'loading' ? 'Yükleniyor…' : 'Fotoğrafları Yükle'}
+        {submitLabel}
       </button>
 
       {status === 'success' && <p className="gallery__upload-success">{message}</p>}

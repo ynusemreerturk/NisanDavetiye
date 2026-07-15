@@ -57,37 +57,47 @@ public class GaleriService : IGaleriService
 
         Directory.CreateDirectory(_storage.AbsoluteUploadDirectory);
 
-        foreach (var file in files)
-        {
-            if (file.Content.Length > MaxFileBytes)
-                throw new ArgumentException($"{file.FileName} dosyası çok büyük (en fazla 15 MB).");
-
-            if (!AllowedContentTypes.Contains(file.ContentType))
-                throw new ArgumentException($"{file.FileName} desteklenmeyen bir dosya türü.");
-
-            if (!ImageFileValidator.TryDetect(file.ContentType, file.Content, out _))
-                throw new ArgumentException($"{file.FileName} geçerli bir görüntü dosyası değil.");
-        }
-
         var nextSira = await _repo.GetNextGaleriSiraAsync();
         var uploadedNames = new List<string>();
         var newItems = new List<GaleriResmi>();
         var now = DateTime.UtcNow;
 
+        // Tek geçiş: doğrula → doğrudan diske stream (MemoryStream ile çift kopya yok).
         foreach (var file in files)
         {
-            if (!ImageFileValidator.TryDetect(file.ContentType, file.Content, out var detectedType))
+            if (file.Length <= 0)
+                throw new ArgumentException($"{file.FileName} boş dosya.");
+
+            if (file.Length > MaxFileBytes)
+                throw new ArgumentException($"{file.FileName} dosyası çok büyük (en fazla 15 MB).");
+
+            if (!AllowedContentTypes.Contains(file.ContentType))
+                throw new ArgumentException($"{file.FileName} desteklenmeyen bir dosya türü.");
+
+            var (ok, detectedType) = await ImageFileValidator.TryDetectAsync(
+                file.ContentType,
+                file.Content,
+                cancellationToken);
+
+            if (!ok)
                 throw new ArgumentException($"{file.FileName} geçerli bir görüntü dosyası değil.");
+
+            if (!file.Content.CanSeek)
+                throw new ArgumentException($"{file.FileName} okunamadı. Lütfen tekrar deneyin.");
 
             var ext = ExtensionFromContentType(detectedType);
             var id = Guid.NewGuid().ToString("N")[..8];
             var storedName = $"{now:yyyyMMdd-HHmmss}-{id}{ext}";
             var diskPath = Path.Combine(_storage.AbsoluteUploadDirectory, storedName);
 
-            if (file.Content.CanSeek)
-                file.Content.Position = 0;
-
-            await using (var fs = File.Create(diskPath))
+            file.Content.Position = 0;
+            await using (var fs = new FileStream(
+                             diskPath,
+                             FileMode.CreateNew,
+                             FileAccess.Write,
+                             FileShare.None,
+                             bufferSize: 81920,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
                 await file.Content.CopyToAsync(fs, cancellationToken);
             }

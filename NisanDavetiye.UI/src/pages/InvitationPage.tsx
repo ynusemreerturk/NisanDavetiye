@@ -14,7 +14,8 @@ import { TimelineSection } from '../components/excellence/TimelineSection'
 import { MusicPlayer, type MusicPlayerHandle } from '../components/MusicPlayer'
 import { RsvpSection } from '../components/RsvpSection'
 
-const INVITE_ID_PATTERN = /^[a-f0-9]{32}$/i
+/** Sabit davetiye slug'ı: /i/24temmuz2026 */
+const INVITE_ID_PATTERN = /^[a-z0-9-]{3,64}$/i
 
 export function InvitationPage() {
   const { inviteId = '' } = useParams()
@@ -41,15 +42,26 @@ export function InvitationPage() {
     refreshDavetiye()
   }, [refreshDavetiye])
 
-  const handleIntroComplete = () => {
+  const startMusic = useCallback(() => {
+    musicRef.current?.start()
+  }, [])
+
+  const handleIntroComplete = useCallback(() => {
     setIntroDone(true)
-  }
+    // Intro bittikten sonra da yeniden dene (ilk jest kaçırıldıysa).
+    startMusic()
+  }, [startMusic])
 
   const handleHeroUnlock = useCallback(() => {
     setHeroUnlocked(true)
     document.body.style.overflow = ''
-    musicRef.current?.start()
-  }, [])
+    startMusic()
+  }, [startMusic])
+
+  useEffect(() => {
+    if (!heroUnlocked) return
+    startMusic()
+  }, [heroUnlocked, startMusic])
 
   if (error) {
     return <div className="loading-screen">{error}</div>
@@ -69,14 +81,20 @@ export function InvitationPage() {
   return (
     <InviteProvider inviteKey={inviteKey}>
       <div className="invitation">
+        {/* Audio her zaman mount — görünürlük düğmesi hero açılınca. */}
+        <MusicPlayer
+          ref={musicRef}
+          url={data.muzikUrl || '/assets/audio/ballerina.mp3'}
+          showButton={heroUnlocked}
+        />
+
         {!introDone && (
           <IntroOverlay
             videoUrl={data.acilisVideoUrl || '/assets/video/intro.mp4'}
             onComplete={handleIntroComplete}
+            onUserGesture={startMusic}
           />
         )}
-
-        <MusicPlayer ref={musicRef} url={data.muzikUrl} visible={heroUnlocked} />
 
         {introDone && (
           <>

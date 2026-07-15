@@ -11,10 +11,10 @@ public class InviteAuthService : IInviteAuthService
 
     public async Task<bool> IsValidDavetKeyAsync(string? provided)
     {
-        if (string.IsNullOrWhiteSpace(provided) || provided.Length != 32)
+        if (!InviteSlug.IsValid(provided))
             return false;
 
         var stored = await _repo.GetDavetUidAsync();
-        return SecureCompare.Equals(stored, provided.Trim());
+        return SecureCompare.Equals(stored, provided!.Trim());
     }
 }

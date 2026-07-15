@@ -13,6 +13,7 @@ public static class DavetiyeDataSeeder
         if (!string.IsNullOrWhiteSpace(ayar.GelinAdi))
             return;
 
+        ayar.DavetUid = "24temmuz2026";
         ayar.GelinAdi = "Ceren";
         ayar.DamatAdi = "Emre";
         ayar.BasHarpler = "C & E";
@@ -29,4 +30,52 @@ public static class DavetiyeDataSeeder
 
         await db.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Excellence UI için eski HasData / klasik tema medya yollarını düzeltir.
+    /// Yalnızca bilinen legacy default değerleri günceller; admin özel değerlerini ezmez.
+    /// </summary>
+    public static async Task EnsureExcellenceMediaPathsAsync(NisanDavetiyeDbContext db)
+    {
+        var ayar = await db.DavetiyeAyarlari.FirstOrDefaultAsync();
+        if (ayar is null) return;
+
+        var changed = false;
+
+        if (IsLegacy(ayar.KapakGorselUrl, "/assets/images/kapak.jpg"))
+        {
+            ayar.KapakGorselUrl = "/assets/video/hero.mp4";
+            changed = true;
+        }
+
+        if (IsLegacy(ayar.AcilisVideoUrl, "/assets/video/acilis.mp4"))
+        {
+            ayar.AcilisVideoUrl = "/assets/video/intro.mp4";
+            changed = true;
+        }
+
+        if (IsLegacy(ayar.MuzikUrl, "/assets/audio/muzik.mp3"))
+        {
+            ayar.MuzikUrl = "/assets/audio/ballerina.mp3";
+            changed = true;
+        }
+
+        if (IsLegacy(ayar.ZarfArkaPlanUrl, "/assets/images/zarf-arka.jpg"))
+        {
+            ayar.ZarfArkaPlanUrl = "";
+            changed = true;
+        }
+
+        if (string.Equals(ayar.BasHarpler?.Trim(), "C & Es", StringComparison.Ordinal))
+        {
+            ayar.BasHarpler = "C & E";
+            changed = true;
+        }
+
+        if (changed)
+            await db.SaveChangesAsync();
+    }
+
+    private static bool IsLegacy(string? current, string legacy) =>
+        string.Equals((current ?? string.Empty).Trim(), legacy, StringComparison.OrdinalIgnoreCase);
 }

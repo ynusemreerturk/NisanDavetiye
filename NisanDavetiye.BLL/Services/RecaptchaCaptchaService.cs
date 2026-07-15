@@ -5,12 +5,12 @@ using NisanDavetiye.BLL.Options;
 
 namespace NisanDavetiye.BLL.Services;
 
-public class TurnstileCaptchaService : ICaptchaService
+public class RecaptchaCaptchaService : ICaptchaService
 {
     private readonly HttpClient _http;
-    private readonly TurnstileOptions _options;
+    private readonly RecaptchaOptions _options;
 
-    public TurnstileCaptchaService(HttpClient http, IOptions<TurnstileOptions> options)
+    public RecaptchaCaptchaService(HttpClient http, IOptions<RecaptchaOptions> options)
     {
         _http = http;
         _options = options.Value;
@@ -27,7 +27,7 @@ public class TurnstileCaptchaService : ICaptchaService
         if (string.IsNullOrWhiteSpace(_options.SecretKey))
             throw new InvalidOperationException("CAPTCHA yapılandırması eksik.");
 
-        if (string.IsNullOrWhiteSpace(token))
+        if (string.IsNullOrWhiteSpace(token) || token is "disabled")
             throw new ArgumentException("CAPTCHA doğrulaması gerekli.");
 
         using var content = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -38,16 +38,16 @@ public class TurnstileCaptchaService : ICaptchaService
         });
 
         using var response = await _http.PostAsync(
-            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            "https://www.google.com/recaptcha/api/siteverify",
             content,
             cancellationToken);
 
-        var result = await response.Content.ReadFromJsonAsync<TurnstileVerifyResponse>(cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<RecaptchaVerifyResponse>(cancellationToken);
         if (result?.Success != true)
             throw new ArgumentException("CAPTCHA doğrulaması başarısız. Lütfen tekrar deneyin.");
     }
 
-    private sealed class TurnstileVerifyResponse
+    private sealed class RecaptchaVerifyResponse
     {
         [JsonPropertyName("success")]
         public bool Success { get; set; }

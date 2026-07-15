@@ -6,9 +6,11 @@ type Phase = 'idle' | 'playing' | 'fading' | 'done'
 interface Props {
   videoUrl: string
   onComplete: () => void
+  /** İlk kullanıcı dokunuşunda (autoplay politikası için) çağrılır. */
+  onUserGesture?: () => void
 }
 
-export function IntroOverlay({ videoUrl, onComplete }: Props) {
+export function IntroOverlay({ videoUrl, onComplete, onUserGesture }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const startingRef = useRef(false)
   const [phase, setPhase] = useState<Phase>('idle')
@@ -39,6 +41,9 @@ export function IntroOverlay({ videoUrl, onComplete }: Props) {
     if (phase !== 'idle' || startingRef.current) return
     startingRef.current = true
 
+    // Kullanıcı jesti içinde müziği de başlat (tarayıcı autoplay kısıtı).
+    onUserGesture?.()
+
     const video = videoRef.current
     if (!video) {
       startingRef.current = false
@@ -56,7 +61,7 @@ export function IntroOverlay({ videoUrl, onComplete }: Props) {
     } finally {
       startingRef.current = false
     }
-  }, [phase])
+  }, [phase, onUserGesture])
 
   if (phase === 'done') return null
 

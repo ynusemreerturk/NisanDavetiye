@@ -13,6 +13,12 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? "Data Source=nisandavetiye.db";
 
+// SQLite dosyasının bulunduğu klasörü (ör. Railway Volume /data) başlamadan önce oluştur.
+var sqliteDataSource = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
+var sqliteDirectory = Path.GetDirectoryName(sqliteDataSource);
+if (!string.IsNullOrWhiteSpace(sqliteDirectory))
+    Directory.CreateDirectory(sqliteDirectory);
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -128,21 +134,41 @@ using (var scope = app.Services.CreateScope())
     await davetiyeRepo.EnsureDavetUidAsync();
     await davetiyeRepo.EnsurePanelUidAsync();
     await DavetiyeDataSeeder.SeedAsync(db);
+    await DavetiyeDataSeeder.EnsureExcellenceMediaPathsAsync(db);
 
     var panelUidForLog = await davetiyeRepo.GetPanelUidAsync();
+    var davetUidForLog = await davetiyeRepo.GetDavetUidAsync();
+
+    if (!string.IsNullOrEmpty(davetUidForLog))
+    {
+        app.Logger.LogInformation("Davetiye linki (path): /i/{DavetUid}", davetUidForLog);
+        app.Logger.LogInformation("Davetiye linki (geliştirme): http://localhost:5173/i/{DavetUid}", davetUidForLog);
+    }
+
     if (!string.IsNullOrEmpty(panelUidForLog))
     {
-        app.Logger.LogInformation(
-            "Yönetim paneli: http://localhost:5173/p/{PanelUid}",
-            panelUidForLog);
+        app.Logger.LogInformation("Yönetim paneli (path): /p/{PanelUid}", panelUidForLog);
+        app.Logger.LogInformation("Yönetim paneli (geliştirme): http://localhost:5173/p/{PanelUid}", panelUidForLog);
     }
 }
 
 app.UseForwardedHeaders();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseCors("UiPolicy");
 app.UseRateLimiter();
 app.UseSecurity();
 app.MapControllers();
+
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    timestamp = DateTimeOffset.UtcNow
+}));
+
+// SPA fallback: /api/* istekleri asla index.html'e düşmez; diğer route'lar UI'a yönlenir.
+app.MapFallback("/api/{**rest}", () => Results.NotFound());
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

@@ -3,7 +3,7 @@ namespace NisanDavetiye.DAL.Entities;
 public class DavetiyeAyarlari
 {
     public int Id { get; set; } = 1;
-    /// <summary>Gizli davetiye linki anahtarı (32 karakter hex).</summary>
+    /// <summary>Davetiye URL slug'ı (ör. 24temmuz2026 → /i/24temmuz2026).</summary>
     public string DavetUid { get; set; } = string.Empty;
     /// <summary>Gizli yönetim paneli linki anahtarı (32 karakter hex).</summary>
     public string PanelUid { get; set; } = string.Empty;

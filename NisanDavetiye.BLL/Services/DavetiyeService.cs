@@ -17,7 +17,7 @@ public class DavetiyeService : IDavetiyeService
 
     public async Task<DavetiyeDto> GetDavetiyeByUidAsync(string uid)
     {
-        if (string.IsNullOrWhiteSpace(uid) || uid.Length != 32)
+        if (!InviteSlug.IsValid(uid))
             throw new KeyNotFoundException();
 
         var ayar = await _repo.GetAyarlariByUidAsync(uid.Trim())

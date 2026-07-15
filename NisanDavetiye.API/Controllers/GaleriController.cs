@@ -27,7 +27,7 @@ public class GaleriController : ControllerBase
         [FromForm] string captchaToken,
         CancellationToken cancellationToken)
     {
-        var uploads = new List<GaleriUploadFile>();
+        var ownedStreams = new List<Stream>();
         try
         {
             await _captcha.ValidateOrThrowAsync(
@@ -35,12 +35,17 @@ public class GaleriController : ControllerBase
                 HttpContext.Connection.RemoteIpAddress?.ToString(),
                 cancellationToken);
 
+            var uploads = new List<GaleriUploadFile>();
             foreach (var file in files.Where(f => f.Length > 0))
             {
-                var stream = new MemoryStream();
-                await file.CopyToAsync(stream, cancellationToken);
-                stream.Position = 0;
-                uploads.Add(new GaleriUploadFile(file.FileName, file.ContentType, stream));
+                // Belleğe tüm dosyayı kopyalama; isteğin stream'ini doğrudan ilet.
+                var stream = file.OpenReadStream();
+                ownedStreams.Add(stream);
+                uploads.Add(new GaleriUploadFile(
+                    file.FileName,
+                    file.ContentType,
+                    stream,
+                    file.Length));
             }
 
             var result = await _service.UploadAsync(uploads, cancellationToken);
@@ -56,8 +61,8 @@ public class GaleriController : ControllerBase
         }
         finally
         {
-            foreach (var upload in uploads)
-                await upload.Content.DisposeAsync();
+            foreach (var stream in ownedStreams)
+                await stream.DisposeAsync();
         }
     }
 }

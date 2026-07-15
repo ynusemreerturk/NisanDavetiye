@@ -6,11 +6,12 @@ export interface MusicPlayerHandle {
 
 interface Props {
   url: string
-  visible?: boolean
+  /** Müzik düğmesini göster (ses her zaman mount edilir). */
+  showButton?: boolean
 }
 
 export const MusicPlayer = forwardRef<MusicPlayerHandle, Props>(function MusicPlayer(
-  { url, visible = true },
+  { url, showButton = true },
   ref,
 ) {
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -18,26 +19,28 @@ export const MusicPlayer = forwardRef<MusicPlayerHandle, Props>(function MusicPl
   const [muted, setMuted] = useState(false)
 
   useImperativeHandle(ref, () => ({
-    start: async () => {
+    start: () => {
       const audio = audioRef.current
-      if (!audio) return
+      if (!audio || !url) return
       audio.volume = 0.5
-      try {
-        await audio.play()
-        setPlaying(true)
-        setMuted(false)
-      } catch {
-        setPlaying(false)
-      }
+      void audio
+        .play()
+        .then(() => {
+          setPlaying(true)
+          setMuted(false)
+        })
+        .catch(() => {
+          setPlaying(false)
+        })
     },
   }))
 
   const toggleMute = () => {
     const audio = audioRef.current
     if (!audio) return
-    if (muted) {
+    if (muted || audio.paused) {
       audio.volume = 0.5
-      audio.play().catch(() => undefined)
+      void audio.play().catch(() => undefined)
       setMuted(false)
       setPlaying(true)
     } else {
@@ -51,23 +54,33 @@ export const MusicPlayer = forwardRef<MusicPlayerHandle, Props>(function MusicPl
     const audio = audioRef.current
     if (!audio) return
     const onEnded = () => setPlaying(false)
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
     audio.addEventListener('ended', onEnded)
-    return () => audio.removeEventListener('ended', onEnded)
+    audio.addEventListener('play', onPlay)
+    audio.addEventListener('pause', onPause)
+    return () => {
+      audio.removeEventListener('ended', onEnded)
+      audio.removeEventListener('play', onPlay)
+      audio.removeEventListener('pause', onPause)
+    }
   }, [])
 
-  if (!url || !visible) return null
+  if (!url) return null
 
   return (
     <>
-      <audio ref={audioRef} src={url} loop preload="auto" />
-      <button
-        type="button"
-        className={`ex-music-btn ${playing && !muted ? 'ex-music-btn--on' : ''}`}
-        onClick={toggleMute}
-        aria-label={playing && !muted ? 'Müziği kapat' : 'Müziği aç'}
-      >
-        {playing && !muted ? '♫' : '♪'}
-      </button>
+      <audio ref={audioRef} src={url} loop preload="auto" playsInline />
+      {showButton && (
+        <button
+          type="button"
+          className={`ex-music-btn ${playing && !muted ? 'ex-music-btn--on' : ''}`}
+          onClick={toggleMute}
+          aria-label={playing && !muted ? 'Müziği kapat' : 'Müziği aç'}
+        >
+          {playing && !muted ? '♫' : '♪'}
+        </button>
+      )}
     </>
   )
 })

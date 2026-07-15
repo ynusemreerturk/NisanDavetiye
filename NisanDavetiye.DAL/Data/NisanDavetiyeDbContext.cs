@@ -19,9 +19,10 @@ public class NisanDavetiyeDbContext : DbContext
         modelBuilder.Entity<DavetiyeAyarlari>().HasData(new DavetiyeAyarlari
         {
             Id = 1,
-            GelinAdi = "Ayşe",
-            DamatAdi = "Mehmet",
-            BasHarpler = "A & M",
+            DavetUid = "24temmuz2026",
+            GelinAdi = "Ceren",
+            DamatAdi = "Emre",
+            BasHarpler = "C & E",
             Baslik = "Nişanımıza Davetlisiniz",
             HosgeldinMetni = "Bu mutlu günümüzde sizleri de aramızda görmekten büyük mutluluk duyarız. Sevgi ve saygılarımızla.",
             EtkinlikTarihi = new DateTime(2026, 7, 24, 19, 0, 0),
@@ -29,11 +30,11 @@ public class NisanDavetiyeDbContext : DbContext
             Adres = "Cumhuriyet Mah. Malatya Cad. Hazar Dağlı Kavşağı, Merkez / Elazığ",
             HaritaEmbedUrl = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3062.886!2d39.1768327!3d38.666045!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4076c1bca9e9b6c1%3A0xf6d1059611873dee!2sWinner%27s%20Davet%20Evi!5e0!3m2!1str!2str!4v1",
             HaritaLink = "https://maps.app.goo.gl/6peSAmVGAKMruPxo6",
-            KapakGorselUrl = "/assets/images/kapak.jpg",
+            KapakGorselUrl = "/assets/video/hero.mp4",
             CiftFotoUrl = "/assets/images/cift.jpg",
-            AcilisVideoUrl = "/assets/video/acilis.mp4",
-            MuzikUrl = "/assets/audio/muzik.mp3",
-            ZarfArkaPlanUrl = "/assets/images/zarf-arka.jpg"
+            AcilisVideoUrl = "/assets/video/intro.mp4",
+            MuzikUrl = "/assets/audio/ballerina.mp3",
+            ZarfArkaPlanUrl = ""
         });
 
         modelBuilder.Entity<TimelineOgesi>().HasData(
