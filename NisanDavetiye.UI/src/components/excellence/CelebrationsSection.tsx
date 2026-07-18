@@ -35,7 +35,7 @@ export function CelebrationsSection({ data }: { data: Davetiye }) {
           <ExcellenceSectionHeader
             title="Detaylar"
             titleScript
-            subtitle="Nişanımız"
+            subtitle=""
           />
         </FadeIn>
 
