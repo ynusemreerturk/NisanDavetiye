@@ -17,7 +17,7 @@ public static class DavetiyeDataSeeder
         ayar.GelinAdi = "Ceren";
         ayar.DamatAdi = "Emre";
         ayar.BasHarpler = "C & E";
-        ayar.EtkinlikTarihi = new DateTime(2026, 7, 24, 19, 0, 0);
+        ayar.EtkinlikTarihi = new DateTime(2026, 7, 24, 19, 30, 0);
         ayar.AcilisVideoUrl = "/assets/video/intro.mp4";
         ayar.KapakGorselUrl = "/assets/video/hero.mp4";
         ayar.ZarfArkaPlanUrl = "";

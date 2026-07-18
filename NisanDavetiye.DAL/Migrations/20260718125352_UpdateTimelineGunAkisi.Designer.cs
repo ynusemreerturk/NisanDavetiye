@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NisanDavetiye.DAL.Data;
 
@@ -10,9 +11,11 @@ using NisanDavetiye.DAL.Data;
 namespace NisanDavetiye.DAL.Migrations
 {
     [DbContext(typeof(NisanDavetiyeDbContext))]
-    partial class NisanDavetiyeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718125352_UpdateTimelineGunAkisi")]
+    partial class UpdateTimelineGunAkisi
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
@@ -112,7 +115,7 @@ namespace NisanDavetiye.DAL.Migrations
                             CiftFotoUrl = "/assets/images/cift.jpg",
                             DamatAdi = "Emre",
                             DavetUid = "24temmuz2026",
-                            EtkinlikTarihi = new DateTime(2026, 7, 24, 19, 30, 0, 0, DateTimeKind.Unspecified),
+                            EtkinlikTarihi = new DateTime(2026, 7, 24, 19, 0, 0, 0, DateTimeKind.Unspecified),
                             GaleriDriveKlasorUrl = "",
                             GaleriYuklemeAcik = false,
                             GelinAdi = "Ceren",
